@@ -4,7 +4,7 @@ A personal travel map built from **review videos**. Users upload videos, and the
 
 Think of the place reviews on Google Maps. The difference is that each place here is summarized from videos the user uploaded, not from other people's reviews.
 
-> Status: **design phase**, no code yet. The detailed design and roadmap are in [PLAN.md](PLAN.md).
+> Status: **Phase 0 (foundation) done**: auth, job queue, live job progress, test console. The detailed design and roadmap are in [PLAN.md](PLAN.md).
 
 ## Features
 
@@ -37,27 +37,86 @@ Think of the place reviews on Google Maps. The difference is that each place her
 | Fuzzy name matching | rapidfuzz |
 | LLM | A provider with solid structured-output support (not decided yet, see PLAN.md) |
 
-## Planned layout
+## Layout
 
 ```
-src/travelrag/
-├── api/          # FastAPI routers, SSE
-├── worker/       # worker entrypoint, task registration
-├── ingestion/    # upload, VideoSource, job creation
-├── media/        # ASR, frame selection, OCR, timestamped chunking
-├── extraction/   # LLM → PlaceMention
-├── places/       # resolution, aggregation, summary, place cards
-├── geo/          # Nominatim, Overpass, OSRM, opening_hours
-├── planning/     # preference intake, solver, place replacement
-├── qa/           # intent, filters, retrieval, rerank, answer
-├── indexing/     # dense + sparse embeddings, trigram
-├── llm/          # client, structured output, prompts
-├── jobs/         # job state, notifications
-└── core/         # config, db, auth, logging
-migrations/       # Alembic
-tests/
+backend/                  # Python package `travelrag` (uv project)
+├── src/travelrag/
+│   ├── api/              # FastAPI app, routers, SSE                     ✅ Phase 0
+│   ├── worker/           # procrastinate app + task registration         ✅ Phase 0
+│   ├── jobs/             # job state machine, queue, events              ✅ Phase 0
+│   ├── core/             # config, db, security, users, logging          ✅ Phase 0
+│   ├── ingestion/        # upload, VideoSource, job creation             Phase 1
+│   ├── media/            # ASR, frame selection, OCR, chunking           Phase 1
+│   ├── extraction/       # LLM → PlaceMention                            Phase 1
+│   ├── places/           # resolution, aggregation, summary, cards       Phase 1
+│   ├── geo/              # Nominatim, Overpass, OSRM, opening_hours      Phase 1
+│   ├── indexing/         # dense + sparse embeddings, trigram            Phase 2
+│   ├── qa/               # intent, filters, retrieval, rerank, answer    Phase 2
+│   ├── planning/         # preferences, solver, replacement              Phase 3
+│   └── llm/              # client, structured output, prompts            Phase 1
+├── migrations/           # Alembic
+└── tests/                # unit/ (no I/O) and integration/ (real Postgres)
+frontend/                 # Vue 3 + Vite. For now a single test console page
+docker/                   # Postgres init scripts
+scripts/                  # osrm-prepare.sh
+docker-compose.yml
 ```
 
 ## Running
 
-Not yet available. This section will be written in **Phase 0** (see [PLAN.md](PLAN.md#7-roadmap)). The plan is a single `docker compose up` that starts Postgres, api, worker and OSRM.
+Requirements: Docker (Docker Desktop, Colima, ...). For local development outside Docker you also need [uv](https://docs.astral.sh/uv/) and Node 22+.
+
+```bash
+docker compose up --build
+```
+
+| Service | URL | Notes |
+|---|---|---|
+| `web` | http://localhost:5173 | Test console: register/log in, start dummy jobs, watch progress live |
+| `api` | http://localhost:8000/docs | OpenAPI docs. Auto-reloads on changes to `backend/src` |
+| `worker` | — | Restart it after code changes: `docker compose restart worker` |
+| `db` | `localhost:5432` | `travelrag` / `travelrag`. Databases: `travelrag` (app), `travelrag_test` (tests) |
+| `migrate` | — | Runs `alembic upgrade head` once, before api/worker start |
+
+The dummy job walks through the pipeline stages (`asr → ocr → extract → resolve → index`). Its options let you exercise every job state: `fail_at` ends in `failed` (then **Retry**), and `needs_review` ends in `needs_review` (then **Approve**).
+
+### OSRM (optional)
+
+```bash
+./scripts/osrm-prepare.sh [PBF_URL]      # default: Vietnam extract from Geofabrik
+docker compose --profile geo up osrm     # http://localhost:5001
+```
+
+### Backend without Docker
+
+```bash
+cd backend
+cp .env.example .env
+uv sync
+uv run alembic upgrade head
+uv run uvicorn travelrag.api.main:app --reload             # API
+uv run procrastinate --app=travelrag.worker.app.app worker  # worker (separate terminal)
+```
+
+Postgres must still be running (`docker compose up db`).
+
+### Frontend without Docker
+
+```bash
+cd frontend
+npm install
+npm run dev        # proxies /api to http://localhost:8000 (override with API_PROXY_TARGET)
+```
+
+### Checks
+
+```bash
+cd backend
+uv run ruff check . && uv run ruff format --check .
+uv run mypy
+TRAVELRAG_TEST_DATABASE_URL=postgresql+psycopg://travelrag:travelrag@localhost:5432/travelrag_test \
+  uv run pytest          # without the variable, integration tests are skipped
+```
+
+Integration tests apply migrations automatically and truncate the job queue, so only point them at a disposable database. CI (`.github/workflows/ci.yml`) runs all of the above plus the frontend build. Pre-commit hooks: `uv tool install pre-commit && pre-commit install`.

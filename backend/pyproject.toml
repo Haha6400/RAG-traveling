@@ -1,0 +1,58 @@
+[project]
+name = "travelrag"
+version = "0.1.0"
+description = "Personal travel map built from review videos"
+requires-python = ">=3.12"
+dependencies = [
+    "alembic>=1.13",
+    "email-validator>=2.2",
+    "fastapi>=0.115",
+    "procrastinate>=3.0",
+    "psycopg[binary]>=3.2",
+    "pwdlib[argon2]>=0.2",
+    "pydantic>=2.8",
+    "pydantic-settings>=2.4",
+    "pyjwt>=2.9",
+    "sqlalchemy[asyncio]>=2.0.30",
+    "uvicorn[standard]>=0.30",
+]
+
+[dependency-groups]
+dev = [
+    "httpx>=0.27",
+    "mypy>=1.11",
+    "pre-commit>=3.8",
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "ruff>=0.6",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/travelrag"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "ASYNC", "SIM", "RUF"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+mypy_path = "src"
+packages = ["travelrag"]
+plugins = ["pydantic.mypy"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+markers = [
+    "integration: needs a migrated Postgres at TRAVELRAG_TEST_DATABASE_URL",
+]

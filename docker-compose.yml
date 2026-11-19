@@ -1,0 +1,80 @@
+name: travelrag
+
+x-backend: &backend
+  build: ./backend
+  environment:
+    TRAVELRAG_DATABASE_URL: postgresql+psycopg://travelrag:travelrag@db:5432/travelrag
+    TRAVELRAG_JWT_SECRET: ${TRAVELRAG_JWT_SECRET:-dev-only-insecure-secret-change-me-32b}
+    TRAVELRAG_LOG_LEVEL: ${TRAVELRAG_LOG_LEVEL:-INFO}
+  volumes:
+    - ./backend/src:/app/src
+    - ./backend/migrations:/app/migrations
+
+services:
+  db:
+    image: pgvector/pgvector:0.8.0-pg16
+    environment:
+      POSTGRES_USER: travelrag
+      POSTGRES_PASSWORD: travelrag
+      POSTGRES_DB: travelrag
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U travelrag -d travelrag"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  migrate:
+    <<: *backend
+    command: alembic upgrade head
+    depends_on:
+      db:
+        condition: service_healthy
+
+  api:
+    <<: *backend
+    command: uvicorn travelrag.api.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir src
+    ports:
+      - "8000:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  worker:
+    <<: *backend
+    command: procrastinate --app=travelrag.worker.app.app worker
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  web:
+    image: node:22-alpine
+    working_dir: /app
+    command: sh -c "npm ci && npm run dev -- --host 0.0.0.0"
+    environment:
+      API_PROXY_TARGET: http://api:8000
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - api
+
+  # Routing engine. Needs prepared data first: ./scripts/osrm-prepare.sh
+  # Start with: docker compose --profile geo up
+  osrm:
+    image: ghcr.io/project-osrm/osrm-backend:v5.27.1
+    profiles: ["geo"]
+    command: osrm-routed --algorithm mld /data/region.osrm
+    ports:
+      - "5001:5000"
+    volumes:
+      - ./data/osrm:/data
+
+volumes:
+  pgdata:

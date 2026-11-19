@@ -313,7 +313,15 @@ query_unaccent ──────────────► pg_trgm on names/al
 
 Each phase ends with something that runs end-to-end.
 
-### Phase 0: Foundation
+### Phase 0: Foundation ✅
+Status: done. Notes from implementation:
+- The test console is a single Vue 3 + Vite page (`frontend/`), meant to grow into the real UI.
+- SSE auth uses a `?token=` query parameter because `EventSource` cannot send headers.
+- Each SSE client holds one dedicated Postgres connection for `LISTEN`. Replace it with a shared fan-out listener if concurrent clients grow.
+- Jobs are enqueued after the DB commit. If enqueueing fails, the job stays `pending` (a reaper for stale pending jobs is a later improvement).
+- The procrastinate schema is installed by Alembic revision `0001`. A procrastinate upgrade that changes its schema needs a new Alembic revision with procrastinate's migration SQL.
+- OSRM runs under the `geo` compose profile, because it needs preprocessed data (`scripts/osrm-prepare.sh`).
+
 - `pyproject.toml` (uv), ruff, mypy, pytest, pre-commit, CI.
 - `docker-compose`: Postgres (pgvector ≥ 0.7, pg_trgm, unaccent), api, worker, OSRM (with data for one test region).
 - First Alembic migration. `core` (config, db, logging). Basic auth.
