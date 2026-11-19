@@ -119,7 +119,10 @@ places/
 users(id, email, created_at)
 
 videos(id, user_id, source,            -- 'local' | 'tiktok' (later)
-       file_path, original_name, duration_ms, language, created_at)
+       storage_key, original_name, content_type, size_bytes,
+       sha256,                         -- UNIQUE (user_id, sha256): re-uploads are rejected
+       duration_ms, width, height, has_audio,  -- filled by the probe stage
+       language, created_at)           -- language: added with ASR (1.2)
 
 jobs(id, user_id, video_id, kind,      -- 'process_video' | 'rebuild_summary' ...
      status,                           -- pending | processing | needs_review | done | failed
@@ -329,7 +332,11 @@ Status: done. Notes from implementation:
 - **Done when:** `docker compose up` works and the dummy-job test passes.
 
 ### Phase 1: Video → place card
-- 1.1 Local upload, `VideoSource`, job creation.
+- 1.1 Local upload, `VideoSource`, job creation. ✅
+  - `POST /api/videos` (multipart) streams the file to storage while hashing it (SHA-256), then records the video and a `process_video` job in one commit. `GET/DELETE /api/videos[/{id}]`, `GET /api/videos/{id}/file` (Range support, for playback at a timestamp later).
+  - The pipeline starts with a `probe` stage (PyAV): it rejects files that are not decodable, have no video stream, or exceed `max_video_seconds`, and stores duration/resolution/audio.
+  - Storage is behind the `VideoStorage` port (`LocalVideoStorage` now, S3-compatible later). api and worker share the `media` volume.
+  - Known limits: Starlette spools the multipart body to a temp file before our size check runs, so very large uploads are written twice. Enforce a body-size limit at the reverse proxy in production. Deleting a video while its job runs makes the job fail with "no longer exists".
 - 1.2 ASR + timestamped chunking.
 - 1.3 Extraction against the `PlaceMention` schema, with versioned prompts.
 - 1.4 Resolution: match against existing places and OSM, confidence thresholds, an API to confirm candidates.

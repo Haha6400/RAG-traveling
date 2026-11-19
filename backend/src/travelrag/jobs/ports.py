@@ -13,6 +13,10 @@ class JobRepository(Protocol):
 
     async def list_for_user(self, user_id: uuid.UUID, limit: int = 50) -> list[Job]: ...
 
+    async def latest_for_videos(self, video_ids: list[uuid.UUID]) -> dict[uuid.UUID, Job]:
+        """Most recent job per video id (videos without jobs are absent)."""
+        ...
+
     async def update(self, job: Job) -> None: ...
 
 

@@ -1,4 +1,5 @@
 from functools import cache
+from pathlib import Path
 from typing import Literal, Self
 
 from pydantic import model_validator
@@ -23,6 +24,11 @@ class Settings(BaseSettings):
     cors_origins: list[str] = ["http://localhost:5173"]
     log_level: str = "INFO"
     sse_heartbeat_seconds: float = 15.0
+
+    # Uploaded videos. Must be shared between the api and worker processes.
+    media_dir: Path = Path("data/media")
+    max_upload_bytes: int = 500 * 1024 * 1024
+    max_video_seconds: int = 20 * 60
 
     @model_validator(mode="after")
     def _require_real_secret_in_prod(self) -> Self:

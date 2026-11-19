@@ -3,7 +3,7 @@
 import { onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { api, loadToken, saveToken } from './api.js'
 
-const STAGES = ['asr', 'ocr', 'extract', 'resolve', 'index']
+const STAGES = ['probe', 'asr', 'ocr', 'extract', 'resolve', 'index']
 const TERMINAL = new Set(['done', 'failed'])
 
 const token = ref(loadToken())
@@ -15,6 +15,9 @@ const credentials = reactive({ email: '', password: '' })
 const options = reactive({ step_seconds: 1, fail_at: '', needs_review: false })
 
 const jobs = ref([])
+const videos = ref([])
+const upload = reactive({ file: null, progress: 0, busy: false })
+const playing = ref(null) // id of the video shown in the player
 const log = ref([])
 const streams = new Map() // job id -> EventSource
 
@@ -31,6 +34,63 @@ function upsertJob(patch) {
   const index = jobs.value.findIndex((j) => j.id === patch.id)
   if (index === -1) jobs.value.unshift(patch)
   else jobs.value[index] = { ...jobs.value[index], ...patch }
+  const video = videos.value.find((v) => v.latest_job?.id === patch.id)
+  if (video) {
+    video.latest_job = { ...video.latest_job, ...patch }
+    // Metadata (duration, size) is written by the probe stage; reload once the job settles.
+    if (TERMINAL.has(patch.status)) refreshVideos()
+  }
+}
+
+async function refreshVideos() {
+  try {
+    videos.value = await api.listVideos(token.value)
+  } catch (err) {
+    report(err)
+  }
+}
+
+async function uploadSelected() {
+  if (!upload.file) return
+  error.value = ''
+  upload.busy = true
+  upload.progress = 0
+  try {
+    const video = await api.uploadVideo(token.value, upload.file, (p) => (upload.progress = p))
+    videos.value.unshift(video)
+    upsertJob(video.latest_job)
+    watch(video.latest_job.id)
+    upload.file = null
+    document.getElementById('video-input').value = ''
+  } catch (err) {
+    report(err)
+  } finally {
+    upload.busy = false
+  }
+}
+
+async function removeVideo(video) {
+  if (!confirm(`Delete "${video.original_name}" and its jobs?`)) return
+  try {
+    await api.deleteVideo(token.value, video.id)
+    if (video.latest_job) unwatch(video.latest_job.id)
+    videos.value = videos.value.filter((v) => v.id !== video.id)
+    jobs.value = jobs.value.filter((j) => j.video_id !== video.id)
+    if (playing.value === video.id) playing.value = null
+  } catch (err) {
+    report(err)
+  }
+}
+
+function formatBytes(n) {
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(0)} KB`
+  return `${(n / 1024 / 1024).toFixed(1)} MB`
+}
+
+function formatDuration(ms) {
+  if (ms == null) return '–'
+  const s = Math.round(ms / 1000)
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 }
 
 function watch(jobId) {
@@ -60,6 +120,7 @@ async function refreshSession() {
   try {
     user.value = await api.me(token.value)
     jobs.value = await api.listJobs(token.value)
+    await refreshVideos()
     jobs.value.filter((j) => !TERMINAL.has(j.status)).forEach((j) => watch(j.id))
   } catch (err) {
     if (err.status === 401) logout()
@@ -95,6 +156,8 @@ function logout() {
   token.value = null
   user.value = null
   jobs.value = []
+  videos.value = []
+  playing.value = null
   saveToken(null)
 }
 
@@ -162,6 +225,62 @@ onBeforeUnmount(() => streams.forEach((s) => s.close()))
       <section class="card row spread">
         <span>Signed in as <strong>{{ user.email }}</strong></span>
         <button class="secondary" @click="logout">Log out</button>
+      </section>
+
+      <section class="card">
+        <h2>Videos</h2>
+        <form class="row wrap" @submit.prevent="uploadSelected">
+          <input
+            id="video-input"
+            type="file"
+            accept="video/mp4,video/quicktime,video/webm,video/x-matroska,.mp4,.mov,.m4v,.webm,.mkv"
+            @change="upload.file = $event.target.files[0] ?? null"
+          />
+          <button type="submit" :disabled="!upload.file || upload.busy">
+            {{ upload.busy ? 'Uploading…' : 'Upload' }}
+          </button>
+          <span v-if="upload.busy"><progress max="100" :value="upload.progress"></progress> {{ upload.progress }}%</span>
+        </form>
+
+        <p v-if="!videos.length" class="muted">No videos yet.</p>
+        <div v-else class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Name</th><th>Size</th><th>Length</th><th>Resolution</th><th>Audio</th><th>Processing</th><th></th></tr>
+            </thead>
+            <tbody>
+              <tr v-for="video in videos" :key="video.id">
+                <td class="name" :title="video.original_name">{{ video.original_name }}</td>
+                <td>{{ formatBytes(video.size_bytes) }}</td>
+                <td>{{ formatDuration(video.duration_ms) }}</td>
+                <td>{{ video.width ? `${video.width}×${video.height}` : '–' }}</td>
+                <td>{{ video.has_audio == null ? '–' : video.has_audio ? 'yes' : 'no' }}</td>
+                <td>
+                  <template v-if="video.latest_job">
+                    <span :class="['badge', video.latest_job.status]">{{ video.latest_job.status }}</span>
+                    <span class="muted"> {{ video.latest_job.stage ?? '' }}</span>
+                    <div v-if="video.latest_job.error" class="error small-text">{{ video.latest_job.error }}</div>
+                  </template>
+                </td>
+                <td class="actions">
+                  <button class="small secondary" @click="playing = playing === video.id ? null : video.id">
+                    {{ playing === video.id ? 'Hide' : 'Play' }}
+                  </button>
+                  <button v-if="video.latest_job?.status === 'failed'" class="small" @click="act(api.retryJob, video.latest_job.id)">Retry</button>
+                  <button class="small danger" @click="removeVideo(video)">Delete</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <video
+          v-if="playing"
+          :key="playing"
+          class="player"
+          :src="api.videoFileUrl(token, playing)"
+          controls
+          autoplay
+        ></video>
       </section>
 
       <section class="card">

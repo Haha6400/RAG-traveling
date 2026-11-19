@@ -27,9 +27,15 @@ class JobService:
     # --- user-facing -------------------------------------------------------------------------
 
     async def create(
-        self, user_id: uuid.UUID, kind: JobKind, payload: dict[str, Any] | None = None
+        self,
+        user_id: uuid.UUID,
+        kind: JobKind,
+        payload: dict[str, Any] | None = None,
+        video_id: uuid.UUID | None = None,
     ) -> Job:
-        job = Job.new(user_id, kind, payload)
+        """Persist and enqueue a job. The commit also covers anything the caller staged in the
+        same unit of work (e.g. the uploaded video's row)."""
+        job = Job.new(user_id, kind, payload, video_id)
         await self._repo.add(job)
         await self._events.publish(JobEvent.from_job(job))
         await self._uow.commit()
@@ -46,6 +52,9 @@ class JobService:
 
     async def list_for_user(self, user_id: uuid.UUID, limit: int = 50) -> list[Job]:
         return await self._repo.list_for_user(user_id, limit)
+
+    async def latest_for_videos(self, video_ids: list[uuid.UUID]) -> dict[uuid.UUID, Job]:
+        return await self._repo.latest_for_videos(video_ids) if video_ids else {}
 
     async def retry(self, job_id: uuid.UUID, user_id: uuid.UUID) -> Job:
         job = await self.get_for_user(job_id, user_id)

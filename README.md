@@ -4,7 +4,7 @@ A personal travel map built from **review videos**. Users upload videos, and the
 
 Think of the place reviews on Google Maps. The difference is that each place here is summarized from videos the user uploaded, not from other people's reviews.
 
-> Status: **Phase 0 (foundation) done**: auth, job queue, live job progress, test console. The detailed design and roadmap are in [PLAN.md](PLAN.md).
+> Status: **Phase 0 done, Phase 1 in progress**: auth, job queue, live job progress, local video upload with probing, test console. The detailed design and roadmap are in [PLAN.md](PLAN.md).
 
 ## Features
 
@@ -46,8 +46,8 @@ backend/                  # Python package `travelrag` (uv project)
 │   ├── worker/           # procrastinate app + task registration         ✅ Phase 0
 │   ├── jobs/             # job state machine, queue, events              ✅ Phase 0
 │   ├── core/             # config, db, security, users, logging          ✅ Phase 0
-│   ├── ingestion/        # upload, VideoSource, job creation             Phase 1
-│   ├── media/            # ASR, frame selection, OCR, chunking           Phase 1
+│   ├── ingestion/        # upload, VideoSource, storage, process_video   ✅ 1.1
+│   ├── media/            # probe ✅ · ASR, frames, OCR, chunking          Phase 1
 │   ├── extraction/       # LLM → PlaceMention                            Phase 1
 │   ├── places/           # resolution, aggregation, summary, cards       Phase 1
 │   ├── geo/              # Nominatim, Overpass, OSRM, opening_hours      Phase 1
@@ -78,6 +78,8 @@ docker compose up --build
 | `worker` | — | Restart it after code changes: `docker compose restart worker` |
 | `db` | `localhost:5432` | `travelrag` / `travelrag`. Databases: `travelrag` (app), `travelrag_test` (tests) |
 | `migrate` | — | Runs `alembic upgrade head` once, before api/worker start |
+
+In the console, **Videos** uploads a local file (`.mp4 .mov .m4v .webm .mkv`, up to 500 MB and 20 min by default). This creates a `process_video` job, which currently probes the file (duration, resolution, audio) and finishes. Later stages are added in Phase 1.2+. Uploaded files live in the `media` Docker volume.
 
 The dummy job walks through the pipeline stages (`asr → ocr → extract → resolve → index`). Its options let you exercise every job state: `fail_at` ends in `failed` (then **Retry**), and `needs_review` ends in `needs_review` (then **Approve**).
 

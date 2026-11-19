@@ -50,4 +50,35 @@ export const api = {
   approveJob: (token, id) => request('POST', `/jobs/${id}/review/approve`, { token }),
   jobEvents: (token, id) =>
     new EventSource(`/api/jobs/${id}/events?token=${encodeURIComponent(token)}`),
+  listVideos: (token) => request('GET', '/videos', { token }),
+  deleteVideo: (token, id) => request('DELETE', `/videos/${id}`, { token }),
+  videoFileUrl: (token, id) => `/api/videos/${id}/file?token=${encodeURIComponent(token)}`,
+  uploadVideo,
+}
+
+// XMLHttpRequest instead of fetch: fetch cannot report upload progress.
+function uploadVideo(token, file, onProgress) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open('POST', '/api/videos')
+    xhr.setRequestHeader('Authorization', `Bearer ${token}`)
+    xhr.upload.onprogress = (e) => e.lengthComputable && onProgress(Math.round((e.loaded / e.total) * 100))
+    xhr.onload = () => {
+      let data = null
+      try {
+        data = JSON.parse(xhr.responseText)
+      } catch {
+        /* non-JSON error page */
+      }
+      if (xhr.status >= 200 && xhr.status < 300) resolve(data)
+      else {
+        const detail = data?.detail
+        reject(new ApiError(xhr.status, detail?.message ?? detail ?? xhr.statusText))
+      }
+    }
+    xhr.onerror = () => reject(new ApiError(0, 'Network error during upload'))
+    const form = new FormData()
+    form.append('file', file)
+    xhr.send(form)
+  })
 }

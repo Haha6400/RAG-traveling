@@ -24,6 +24,13 @@ class FakeJobRepository:
         jobs = [j for j in self.jobs.values() if j.user_id == user_id]
         return sorted(jobs, key=lambda j: j.created_at, reverse=True)[:limit]
 
+    async def latest_for_videos(self, video_ids: list[uuid.UUID]) -> dict[uuid.UUID, Job]:
+        latest: dict[uuid.UUID, Job] = {}
+        for job in sorted(self.jobs.values(), key=lambda j: j.created_at):
+            if job.video_id in video_ids:
+                latest[job.video_id] = copy.deepcopy(job)
+        return latest
+
     async def update(self, job: Job) -> None:
         if job.id not in self.jobs:
             raise LookupError(job.id)

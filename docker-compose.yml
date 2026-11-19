@@ -6,9 +6,11 @@ x-backend: &backend
     TRAVELRAG_DATABASE_URL: postgresql+psycopg://travelrag:travelrag@db:5432/travelrag
     TRAVELRAG_JWT_SECRET: ${TRAVELRAG_JWT_SECRET:-dev-only-insecure-secret-change-me-32b}
     TRAVELRAG_LOG_LEVEL: ${TRAVELRAG_LOG_LEVEL:-INFO}
+    TRAVELRAG_MEDIA_DIR: /data/media
   volumes:
     - ./backend/src:/app/src
     - ./backend/migrations:/app/migrations
+    - media:/data/media  # shared by api (writes uploads) and worker (reads them)
 
 services:
   db:
@@ -78,3 +80,4 @@ services:
 
 volumes:
   pgdata:
+  media:
