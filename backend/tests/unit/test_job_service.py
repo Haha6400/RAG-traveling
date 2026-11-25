@@ -44,6 +44,7 @@ async def test_dummy_pipeline_runs_every_stage_to_done() -> None:
         "ocr",
         "extract",
         "resolve",
+        "aggregate",
         "index",
     ]
     assert (await h.service.get_for_user(job.id, user)).progress == 100

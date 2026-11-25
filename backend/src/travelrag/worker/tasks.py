@@ -8,15 +8,21 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from travelrag.core.config import get_settings
 from travelrag.core.db import SessionUnitOfWork, get_sessionmaker
 from travelrag.core.logging import configure_logging
+from travelrag.indexing.service import IndexingService
 from travelrag.ingestion.adapters.sqlalchemy_repo import SqlAlchemyVideoRepository
 from travelrag.ingestion.factory import build_video_storage
-from travelrag.ingestion.pipeline import process_video
+from travelrag.ingestion.pipeline import PipelineDeps, process_video
 from travelrag.jobs.adapters.procrastinate_queue import TASK_NAMES
 from travelrag.jobs.domain import InvalidTransitionError, JobKind
 from travelrag.jobs.dummy import run_dummy_pipeline
 from travelrag.jobs.factory import build_job_service
 from travelrag.jobs.service import JobNotFoundError
+from travelrag.llm.factory import get_llm
+from travelrag.media.adapters.chunk_repo import SqlAlchemyChunkRepository
+from travelrag.media.adapters.pyav_media import PyAVMediaReader
 from travelrag.media.adapters.pyav_prober import PyAVVideoProber
+from travelrag.ml.factory import get_ml_client
+from travelrag.places.factory import build_places_service
 from travelrag.worker.app import app
 
 configure_logging(get_settings().log_level)
@@ -44,16 +50,29 @@ async def _dummy(session: AsyncSession, job_id: uuid.UUID) -> None:
     await run_dummy_pipeline(build_job_service(session), job_id)
 
 
-async def _process_video(session: AsyncSession, job_id: uuid.UUID) -> None:
-    await process_video(
-        job_id,
+def build_pipeline_deps(session: AsyncSession) -> PipelineDeps:
+    settings = get_settings()
+    ml = get_ml_client()
+    return PipelineDeps(
         jobs=build_job_service(session),
         videos=SqlAlchemyVideoRepository(session),
         storage=build_video_storage(),
-        prober=PyAVVideoProber(),
         uow=SessionUnitOfWork(session),
-        max_video_seconds=get_settings().max_video_seconds,
+        prober=PyAVVideoProber(),
+        media=PyAVMediaReader(),
+        transcriber=ml,
+        ocr=ml if settings.ocr_enabled else None,
+        chunks=SqlAlchemyChunkRepository(session),
+        llm=get_llm(),
+        places=build_places_service(session),
+        indexer=IndexingService(session, ml),
+        max_video_seconds=settings.max_video_seconds,
+        ocr_sample_seconds=settings.ocr_sample_seconds,
     )
+
+
+async def _process_video(session: AsyncSession, job_id: uuid.UUID) -> None:
+    await process_video(job_id, build_pipeline_deps(session))
 
 
 @app.task(name=TASK_NAMES[JobKind.DUMMY])

@@ -8,7 +8,9 @@ from sqlalchemy.ext.asyncio import create_async_engine
 # Import every module that defines ORM rows so autogenerate sees them.
 import travelrag.core.users
 import travelrag.ingestion.adapters.sqlalchemy_repo
-import travelrag.jobs.adapters.sqlalchemy_repo  # noqa: F401
+import travelrag.jobs.adapters.sqlalchemy_repo
+import travelrag.media.adapters.chunk_repo
+import travelrag.places.adapters.sqlalchemy_repo  # noqa: F401
 from travelrag.core.config import get_settings
 from travelrag.core.db import Base
 

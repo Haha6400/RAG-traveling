@@ -62,3 +62,52 @@ async def auth_headers(client: httpx.AsyncClient) -> dict[str, str]:
 
 async def run_worker_until_idle() -> None:
     await procrastinate_app.run_worker_async(wait=False, install_signal_handlers=False)
+
+
+# --- Phase 1-3: fake external services + demo data ---------------------------------------------
+
+from dataclasses import dataclass  # noqa: E402
+
+from tests.fakes import FakeML, ScriptedLLM  # noqa: E402
+from travelrag.core.db import get_sessionmaker  # noqa: E402
+from travelrag.demo.offline import DemoGeocoder, HashEmbedder  # noqa: E402
+from travelrag.demo.seed import seed_user  # noqa: E402
+from travelrag.geo.adapters.routing import StraightLineRouter  # noqa: E402
+
+
+@dataclass
+class World:
+    llm: ScriptedLLM
+    ml: FakeML
+
+
+@pytest.fixture
+def world(monkeypatch: pytest.MonkeyPatch) -> World:
+    """Replace every external service (Claude, ml-service, Nominatim, OSRM) where the app
+    looks it up, so API and worker code paths run unchanged against fakes."""
+    w = World(llm=ScriptedLLM(), ml=FakeML())
+    for target in (
+        "travelrag.places.factory.get_llm",
+        "travelrag.qa.factory.get_llm",
+        "travelrag.worker.tasks.get_llm",
+    ):
+        monkeypatch.setattr(target, lambda: w.llm)
+    for target in (
+        "travelrag.qa.factory.get_ml_client",
+        "travelrag.worker.tasks.get_ml_client",
+        "travelrag.api.routers.places.get_ml_client",
+    ):
+        monkeypatch.setattr(target, lambda: w.ml)
+    monkeypatch.setattr("travelrag.places.factory.get_geocoder", lambda: DemoGeocoder())
+    for target in ("travelrag.qa.factory.get_router",):
+        monkeypatch.setattr(target, lambda: StraightLineRouter())
+    return w
+
+
+@pytest.fixture
+async def seeded(client: httpx.AsyncClient, auth_headers: dict[str, str]) -> uuid.UUID:
+    """The Hanoi demo dataset loaded for the logged-in test user; returns the user id."""
+    user_id = uuid.UUID((await client.get("/api/auth/me", headers=auth_headers)).json()["id"])
+    async with get_sessionmaker()() as session:
+        await seed_user(session, user_id, HashEmbedder())
+    return user_id

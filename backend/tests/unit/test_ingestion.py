@@ -5,7 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from tests.fakes import JobHarness
+from tests.fakes import FakeML, JobHarness, MemoryChunks, ScriptedLLM, StubIndexer, StubPlaces
+from travelrag.extraction.schema import ExtractionOutput
 from travelrag.ingestion.adapters.local_storage import LocalVideoStorage
 from travelrag.ingestion.domain import (
     DuplicateVideoError,
@@ -17,11 +18,11 @@ from travelrag.ingestion.domain import (
     metadata_problem,
     video_extension,
 )
-from travelrag.ingestion.pipeline import process_video
+from travelrag.ingestion.pipeline import PipelineDeps, process_video
 from travelrag.ingestion.ports import IncomingVideo
 from travelrag.ingestion.service import IngestionService
 from travelrag.jobs.domain import JobKind, JobStage, JobStatus
-from travelrag.media.domain import InvalidVideoError, VideoMetadata
+from travelrag.media.domain import InvalidVideoError, SampledFrame, VideoMetadata
 
 GOOD = VideoMetadata(duration_ms=30_000, width=720, height=1280, has_video=True, has_audio=True)
 
@@ -78,6 +79,14 @@ class FakeProber:
         return self._result
 
 
+class FakeMedia:
+    async def extract_wav(self, path: Path) -> bytes | None:
+        return b"wav"
+
+    async def sample_frames(self, path: Path, every_seconds: float) -> list[SampledFrame]:
+        return [SampledFrame(0, b"jpg"), SampledFrame(40_000, b"jpg")]
+
+
 class Harness(JobHarness):
     def __init__(self, media_dir: Path, max_bytes: int = 1000) -> None:
         super().__init__()
@@ -90,16 +99,36 @@ class Harness(JobHarness):
     def files(self) -> list[Path]:
         return [p for p in self.storage.local_path("").rglob("*") if p.is_file()]
 
-    async def run(self, job_id: uuid.UUID, prober: FakeProber, max_seconds: int = 600) -> None:
-        await process_video(
-            job_id,
+    async def run(
+        self,
+        job_id: uuid.UUID,
+        prober: FakeProber,
+        max_seconds: int = 600,
+        *,
+        llm: ScriptedLLM | None = None,
+        ml: FakeML | None = None,
+        places: StubPlaces | None = None,
+    ) -> None:
+        self.ml = ml or FakeML()
+        self.places = places or StubPlaces()
+        self.indexer = StubIndexer()
+        self.chunk_store = MemoryChunks()
+        deps = PipelineDeps(
             jobs=self.service,
             videos=self.videos,
             storage=self.storage,
-            prober=prober,
             uow=self.uow,
+            prober=prober,
+            media=FakeMedia(),
+            transcriber=self.ml,
+            ocr=self.ml,
+            chunks=self.chunk_store,
+            llm=llm or ScriptedLLM({"extract": lambda _: ExtractionOutput(mentions=[])}),
+            places=self.places,  # type: ignore[arg-type]
+            indexer=self.indexer,
             max_video_seconds=max_seconds,
         )
+        await process_video(job_id, deps)
 
 
 # --- domain ---------------------------------------------------------------------------------

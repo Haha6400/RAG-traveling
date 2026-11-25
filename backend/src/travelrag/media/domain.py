@@ -12,3 +12,9 @@ class VideoMetadata:
     height: int | None
     has_video: bool
     has_audio: bool
+
+
+@dataclass(frozen=True)
+class SampledFrame:
+    ts_ms: int
+    jpeg: bytes

@@ -3,9 +3,10 @@ from pathlib import Path
 import httpx
 import pytest
 
-from tests.integration.conftest import run_worker_until_idle
+from tests.integration.conftest import World, run_worker_until_idle
 from tests.media_samples import make_video
 from travelrag.core.config import get_settings
+from travelrag.extraction.schema import ExtractionOutput
 
 
 def _upload(path: Path, name: str | None = None) -> dict[str, tuple[str, bytes, str]]:
@@ -13,8 +14,9 @@ def _upload(path: Path, name: str | None = None) -> dict[str, tuple[str, bytes, 
 
 
 async def test_upload_creates_video_and_job_that_probes_it(
-    client: httpx.AsyncClient, auth_headers: dict[str, str], tmp_path: Path
+    client: httpx.AsyncClient, auth_headers: dict[str, str], tmp_path: Path, world: World
 ) -> None:
+    world.llm.handlers["extract"] = lambda _: ExtractionOutput(mentions=[])
     sample = make_video(tmp_path / "trip.mp4", seconds=2)
 
     response = await client.post("/api/videos", files=_upload(sample), headers=auth_headers)

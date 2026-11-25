@@ -1,7 +1,14 @@
 import uuid
 from typing import Any
 
-from travelrag.jobs.domain import Job, JobEvent, JobKind, JobStage
+from travelrag.jobs.domain import (
+    InvalidTransitionError,
+    Job,
+    JobEvent,
+    JobKind,
+    JobStage,
+    JobStatus,
+)
 from travelrag.jobs.ports import JobEventPublisher, JobQueue, JobRepository, UnitOfWork
 
 
@@ -62,6 +69,13 @@ class JobService:
         await self._save(job)
         await self._require_queue().enqueue(job)
         return job
+
+    async def resume(self, job_id: uuid.UUID) -> None:
+        """Re-enqueue a job waiting in needs_review; the worker continues where it stopped."""
+        job = await self._load(job_id)
+        if job.status is not JobStatus.NEEDS_REVIEW:
+            raise InvalidTransitionError(job.status, JobStatus.PROCESSING)
+        await self._require_queue().enqueue(job)
 
     async def approve_review(self, job_id: uuid.UUID, user_id: uuid.UUID) -> Job:
         job = await self.get_for_user(job_id, user_id)

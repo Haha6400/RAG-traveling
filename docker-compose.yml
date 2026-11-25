@@ -7,6 +7,14 @@ x-backend: &backend
     TRAVELRAG_JWT_SECRET: ${TRAVELRAG_JWT_SECRET:-dev-only-insecure-secret-change-me-32b}
     TRAVELRAG_LOG_LEVEL: ${TRAVELRAG_LOG_LEVEL:-INFO}
     TRAVELRAG_MEDIA_DIR: /data/media
+    # Claude. Put TRAVELRAG_ANTHROPIC_API_KEY=... in a .env file next to this compose file.
+    TRAVELRAG_ANTHROPIC_API_KEY: ${TRAVELRAG_ANTHROPIC_API_KEY:-}
+    # ml-service runs natively on the host (Apple GPU); see ml-service/README.md
+    TRAVELRAG_ML_SERVICE_URL: ${TRAVELRAG_ML_SERVICE_URL:-http://host.docker.internal:8100}
+    # Set to http://osrm:5000 after ./scripts/osrm-prepare.sh + `--profile geo`
+    TRAVELRAG_OSRM_URL: ${TRAVELRAG_OSRM_URL:-}
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
   volumes:
     - ./backend/src:/app/src
     - ./backend/migrations:/app/migrations

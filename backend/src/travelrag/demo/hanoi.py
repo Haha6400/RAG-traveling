@@ -1,0 +1,418 @@
+"""Hanoi demo dataset: what the pipeline would have produced from four review videos.
+
+Used by the tests (with fake models) and by `python -m travelrag.demo.seed` for manual
+testing without uploading videos. Coordinates are approximate (good to ~100 m); opening
+hours and prices are illustrative, not authoritative.
+
+Built-in edge cases:
+- Phở Thìn appears under three names across videos ("Phở Thìn Lò Đúc", "phở Thìn",
+  "quán phở bò tái lăn Lò Đúc") -> resolution must merge them.
+- Cà phê Giảng: video A says 07:00-22:00, video C says 08:00-23:00 -> opening-hours conflict.
+- Bia hơi Tạ Hiện is open until 01:00 -> "open late" questions.
+- Hoàng thành Thăng Long is closed on Mondays -> planner must not schedule it then.
+- Video D talks about seating at the pho shop -> detail question.
+"""
+
+from typing import Any
+
+# key -> OSM-like record (what the geocoder would return)
+PLACES: dict[str, dict[str, Any]] = {
+    "pho_thin": {"name": "Phở Thìn Lò Đúc", "category": "restaurant", "area": "Hai Bà Trưng, Hà Nội", "address": "13 Lò Đúc", "lat": 21.0175, "lng": 105.8560, "opening_hours": "Mo-Su 06:00-21:00", "osm_id": 900001},
+    "bun_cha_huong_lien": {"name": "Bún chả Hương Liên", "category": "restaurant", "area": "Hai Bà Trưng, Hà Nội", "address": "24 Lê Văn Hưu", "lat": 21.0181, "lng": 105.8536, "opening_hours": "Mo-Su 08:00-20:30", "osm_id": 900002},
+    "cafe_giang": {"name": "Cà phê Giảng", "category": "cafe", "area": "Hoàn Kiếm, Hà Nội", "address": "39 Nguyễn Hữu Huân", "lat": 21.0336, "lng": 105.8546, "opening_hours": None, "osm_id": 900003},
+    "banh_mi_25": {"name": "Bánh mì 25", "category": "restaurant", "area": "Hoàn Kiếm, Hà Nội", "address": "25 Hàng Cá", "lat": 21.0362, "lng": 105.8491, "opening_hours": "Mo-Su 07:00-21:00", "osm_id": 900004},
+    "xoi_yen": {"name": "Xôi Yến", "category": "restaurant", "area": "Hoàn Kiếm, Hà Nội", "address": "35B Nguyễn Hữu Huân", "lat": 21.0339, "lng": 105.8549, "opening_hours": "Mo-Su 06:00-23:00", "osm_id": 900005},
+    "van_mieu": {"name": "Văn Miếu - Quốc Tử Giám", "category": "attraction", "area": "Đống Đa, Hà Nội", "address": "58 Quốc Tử Giám", "lat": 21.0277, "lng": 105.8355, "opening_hours": "Mo-Su 08:00-17:00", "osm_id": 900006},
+    "hoang_thanh": {"name": "Hoàng thành Thăng Long", "category": "attraction", "area": "Ba Đình, Hà Nội", "address": "19C Hoàng Diệu", "lat": 21.0352, "lng": 105.8402, "opening_hours": "Tu-Su 08:00-17:00; Mo off", "osm_id": 900007},
+    "chua_tran_quoc": {"name": "Chùa Trấn Quốc", "category": "temple", "area": "Tây Hồ, Hà Nội", "address": "Thanh Niên", "lat": 21.0480, "lng": 105.8368, "opening_hours": "Mo-Su 07:30-18:00", "osm_id": 900008},
+    "den_ngoc_son": {"name": "Đền Ngọc Sơn", "category": "temple", "area": "Hoàn Kiếm, Hà Nội", "address": "Đinh Tiên Hoàng", "lat": 21.0307, "lng": 105.8524, "opening_hours": "Mo-Su 07:00-18:00", "osm_id": 900009},
+    "pho_duong_tau": {"name": "Phố đường tàu", "category": "attraction", "area": "Hoàn Kiếm, Hà Nội", "address": "Ngõ 224 Lê Duẩn", "lat": 21.0300, "lng": 105.8440, "opening_hours": None, "osm_id": 900010},
+    "bia_hoi_ta_hien": {"name": "Bia hơi Tạ Hiện", "category": "bar", "area": "Hoàn Kiếm, Hà Nội", "address": "Tạ Hiện", "lat": 21.0352, "lng": 105.8516, "opening_hours": "Mo-Su 16:00-01:00", "osm_id": 900011},
+    "kem_trang_tien": {"name": "Kem Tràng Tiền", "category": "cafe", "area": "Hoàn Kiếm, Hà Nội", "address": "35 Tràng Tiền", "lat": 21.0247, "lng": 105.8556, "opening_hours": "Mo-Su 07:00-23:00", "osm_id": 900012},
+    "cong_trang_tien": {"name": "Cộng Cà Phê Tràng Tiền", "category": "cafe", "area": "Hoàn Kiếm, Hà Nội", "address": "27 Tràng Tiền", "lat": 21.0249, "lng": 105.8538, "opening_hours": "Mo-Su 07:00-23:30", "osm_id": 900013},
+    "cha_ca_thang_long": {"name": "Chả cá Thăng Long", "category": "restaurant", "area": "Hoàn Kiếm, Hà Nội", "address": "21 Đường Thành", "lat": 21.0327, "lng": 105.8462, "opening_hours": "Mo-Su 10:00-21:00", "osm_id": 900014},
+    "bun_bo_nam_bo": {"name": "Bún bò Nam Bộ Bà Đạt", "category": "restaurant", "area": "Hoàn Kiếm, Hà Nội", "address": "67 Hàng Điếu", "lat": 21.0335, "lng": 105.8470, "opening_hours": "Mo-Su 07:30-22:30", "osm_id": 900015},
+    "bao_tang_dan_toc_hoc": {"name": "Bảo tàng Dân tộc học Việt Nam", "category": "attraction", "area": "Cầu Giấy, Hà Nội", "address": "Nguyễn Văn Huyên", "lat": 21.0405, "lng": 105.7986, "opening_hours": "Tu-Su 08:30-17:30; Mo off", "osm_id": 900016},
+    "old_quarter_hotel": {"name": "Hanoi Old Quarter Hotel", "category": "hotel", "area": "Hoàn Kiếm, Hà Nội", "address": "Hàng Bạc", "lat": 21.0340, "lng": 105.8505, "opening_hours": None, "osm_id": 900017},
+}  # fmt: skip
+
+
+def _m(place: str, name: str, chunks: list[int], **payload: Any) -> dict[str, Any]:
+    base = {
+        "category": PLACES[place]["category"], "area": PLACES[place]["area"],
+        "address_hint": None, "price_min": None, "price_max": None, "currency": None,
+        "price_unit": None, "opening_hours_text": None, "opening_hours_osm": None,
+        "best_time": None, "pros": [], "cons": [], "recommendation": None,
+    }  # fmt: skip
+    base.update(payload)
+    return {"place": place, "name": name, "chunk_numbers": chunks, "confidence": 0.9, **base}
+
+
+# Each video: chunks as produced by ASR+OCR+chunking, and the mentions extraction returns.
+VIDEOS: list[dict[str, Any]] = [
+    {
+        "key": "an_sap_pho_co",
+        "name": "an_sap_pho_co_ha_noi.mp4",
+        "date": "2026-10-01",
+        "chunks": [
+            (
+                0,
+                0,
+                32_000,
+                "Hôm nay mình đi ăn sập phố cổ Hà Nội. Mở màn là phở Thìn Lò Đúc, phở bò tái lăn thơm mùi gừng, nước dùng béo ngậy. Một tô sáu mươi đến bảy lăm nghìn.",
+                "PHỞ THÌN 13 LÒ ĐÚC",
+            ),
+            (
+                1,
+                30_000,
+                64_000,
+                "Quán mở từ sáu giờ sáng tới chín giờ tối, nên đi sớm tầm bảy giờ cho đỡ đông. Sau đó qua bún chả Hương Liên, chỗ Obama từng ăn, bún chả bốn mươi nghìn, combo Obama chín mươi nghìn.",
+                "BÚN CHẢ HƯƠNG LIÊN",
+            ),
+            (
+                2,
+                62_000,
+                98_000,
+                "Tráng miệng thì cà phê trứng ở cà phê Giảng, ba mươi lăm nghìn một cốc, quán mở bảy giờ sáng đến mười giờ tối. Cốc cà phê trứng béo, ngọt vừa, không bị tanh.",
+                "CÀ PHÊ GIẢNG - 39 NGUYỄN HỮU HUÂN",
+            ),
+            (
+                3,
+                96_000,
+                130_000,
+                "Bánh mì 25 Hàng Cá thì ổn, ba mươi nghìn một ổ, vỏ giòn nhưng pate hơi ít. Cuối cùng là xôi Yến, xôi xéo topping đầy đặn, ba lăm nghìn.",
+                "BÁNH MÌ 25",
+            ),
+        ],
+        "mentions": [
+            _m(
+                "pho_thin",
+                "Phở Thìn Lò Đúc",
+                [0, 1],
+                address_hint="13 Lò Đúc",
+                price_min=60000,
+                price_max=75000,
+                currency="VND",
+                price_unit="một tô",
+                opening_hours_text="6h sáng - 9h tối",
+                opening_hours_osm="Mo-Su 06:00-21:00",
+                best_time="sáng sớm khoảng 7h",
+                pros=["nước dùng béo ngậy", "thơm mùi gừng"],
+                recommendation=5,
+            ),
+            _m(
+                "bun_cha_huong_lien",
+                "Bún chả Hương Liên",
+                [1],
+                price_min=40000,
+                price_max=90000,
+                currency="VND",
+                pros=["nổi tiếng vì Obama từng ăn"],
+                recommendation=4,
+            ),
+            _m(
+                "cafe_giang",
+                "Cà phê Giảng",
+                [2],
+                address_hint="39 Nguyễn Hữu Huân",
+                price_min=35000,
+                price_max=35000,
+                currency="VND",
+                price_unit="một cốc",
+                opening_hours_text="7h - 22h",
+                opening_hours_osm="Mo-Su 07:00-22:00",
+                pros=["cà phê trứng béo, ngọt vừa", "không tanh"],
+                recommendation=5,
+            ),
+            _m(
+                "banh_mi_25",
+                "Bánh mì 25",
+                [3],
+                address_hint="25 Hàng Cá",
+                price_min=30000,
+                price_max=30000,
+                currency="VND",
+                pros=["vỏ giòn"],
+                cons=["pate hơi ít"],
+                recommendation=3,
+            ),
+            _m(
+                "xoi_yen",
+                "Xôi Yến",
+                [3],
+                price_min=35000,
+                price_max=35000,
+                currency="VND",
+                pros=["topping đầy đặn"],
+                recommendation=4,
+            ),
+        ],
+    },
+    {
+        "key": "van_hoa_mot_ngay",
+        "name": "ha_noi_1_ngay_van_hoa.mp4",
+        "date": "2026-10-15",
+        "chunks": [
+            (
+                0,
+                0,
+                35_000,
+                "Một ngày khám phá văn hóa Hà Nội. Đầu tiên là Văn Miếu Quốc Tử Giám, vé bảy mươi nghìn, mở tám giờ sáng đến năm giờ chiều. Rất hợp để chụp ảnh áo dài vào buổi sáng.",
+                "VĂN MIẾU - QUỐC TỬ GIÁM",
+            ),
+            (
+                1,
+                33_000,
+                70_000,
+                "Tiếp theo là Hoàng thành Thăng Long, lưu ý thứ Hai đóng cửa nhé. Khu này rộng, nên dành ít nhất một tiếng rưỡi, vé bảy mươi nghìn.",
+                "HOÀNG THÀNH THĂNG LONG",
+            ),
+            (
+                2,
+                68_000,
+                104_000,
+                "Chiều thì ra chùa Trấn Quốc bên Hồ Tây, ngôi chùa cổ nhất Hà Nội, vào cửa miễn phí, đẹp nhất lúc hoàng hôn. Nhớ mặc đồ kín đáo.",
+                "CHÙA TRẤN QUỐC",
+            ),
+            (
+                3,
+                102_000,
+                140_000,
+                "Tối quay về hồ Hoàn Kiếm, qua cầu Thê Húc vào đền Ngọc Sơn, vé ba mươi nghìn. Rồi ghé phố đường tàu chụp ảnh, nhưng tàu chạy qua rất sát nên cẩn thận, giờ tàu không cố định.",
+                "ĐỀN NGỌC SƠN",
+            ),
+        ],
+        "mentions": [
+            _m(
+                "van_mieu",
+                "Văn Miếu Quốc Tử Giám",
+                [0],
+                price_min=70000,
+                price_max=70000,
+                currency="VND",
+                price_unit="vé",
+                opening_hours_text="8h - 17h",
+                opening_hours_osm="Mo-Su 08:00-17:00",
+                best_time="buổi sáng",
+                pros=["hợp chụp ảnh áo dài"],
+                recommendation=5,
+            ),
+            _m(
+                "hoang_thanh",
+                "Hoàng thành Thăng Long",
+                [1],
+                price_min=70000,
+                price_max=70000,
+                currency="VND",
+                opening_hours_text="đóng cửa thứ Hai",
+                pros=["khu rộng, nhiều di tích"],
+                cons=["thứ Hai đóng cửa"],
+                recommendation=4,
+            ),
+            _m(
+                "chua_tran_quoc",
+                "Chùa Trấn Quốc",
+                [2],
+                price_min=0,
+                price_max=0,
+                currency="VND",
+                best_time="hoàng hôn",
+                pros=["chùa cổ nhất Hà Nội", "miễn phí"],
+                cons=["cần mặc đồ kín đáo"],
+                recommendation=5,
+            ),
+            _m(
+                "den_ngoc_son",
+                "Đền Ngọc Sơn",
+                [3],
+                price_min=30000,
+                price_max=30000,
+                currency="VND",
+                best_time="buổi tối",
+                pros=["cầu Thê Húc đẹp"],
+                recommendation=4,
+            ),
+            _m(
+                "pho_duong_tau",
+                "Phố đường tàu",
+                [3],
+                pros=["chụp ảnh độc lạ"],
+                cons=["tàu chạy rất sát, cần cẩn thận", "giờ tàu không cố định"],
+                recommendation=3,
+            ),
+        ],
+    },
+    {
+        "key": "ha_noi_ve_dem",
+        "name": "ha_noi_ve_dem.mp4",
+        "date": "2026-11-01",
+        "chunks": [
+            (
+                0,
+                0,
+                31_000,
+                "Hà Nội về đêm thì phải ra bia hơi Tạ Hiện, mở từ bốn giờ chiều tới một giờ sáng, cốc bia hai mươi nghìn, ngồi ghế nhựa ngắm phố.",
+                "BIA HƠI TẠ HIỆN",
+            ),
+            (
+                1,
+                29_000,
+                63_000,
+                "Ăn tối thì chả cá Thăng Long trên phố Đường Thành, khoảng hai trăm nghìn một suất, cá chiên vàng, ăn với thì là và mắm tôm.",
+                "CHẢ CÁ THĂNG LONG",
+            ),
+            (
+                2,
+                61_000,
+                95_000,
+                "Đi dạo ra Tràng Tiền ăn kem Tràng Tiền, mười lăm nghìn một que, rồi ngồi Cộng cà phê uống cốt dừa, quán mở tới mười một rưỡi đêm.",
+                "KEM TRÀNG TIỀN",
+            ),
+            (
+                3,
+                93_000,
+                125_000,
+                "À cà phê Giảng giờ mở tám giờ sáng tới mười một giờ đêm rồi nhé, tối đi vẫn kịp uống cà phê trứng.",
+                "CÀ PHÊ GIẢNG",
+            ),
+            (
+                4,
+                123_000,
+                150_000,
+                "Mình ở Hanoi Old Quarter Hotel trên phố Hàng Bạc, bảy trăm nghìn một đêm, đi bộ ra hồ Gươm năm phút, phòng hơi nhỏ.",
+                "HANOI OLD QUARTER HOTEL",
+            ),
+        ],
+        "mentions": [
+            _m(
+                "old_quarter_hotel",
+                "Hanoi Old Quarter Hotel",
+                [4],
+                price_min=700000,
+                price_max=700000,
+                currency="VND",
+                price_unit="một đêm",
+                pros=["gần hồ Gươm"],
+                cons=["phòng hơi nhỏ"],
+                recommendation=4,
+            ),
+            _m(
+                "bia_hoi_ta_hien",
+                "Bia hơi Tạ Hiện",
+                [0],
+                price_min=20000,
+                price_max=20000,
+                currency="VND",
+                price_unit="một cốc",
+                opening_hours_text="16h - 1h sáng",
+                opening_hours_osm="Mo-Su 16:00-01:00",
+                best_time="buổi tối",
+                pros=["không khí phố đêm sôi động"],
+                cons=["ghế nhựa, ồn ào"],
+                recommendation=4,
+            ),
+            _m(
+                "cha_ca_thang_long",
+                "Chả cá Thăng Long",
+                [1],
+                price_min=180000,
+                price_max=220000,
+                currency="VND",
+                price_unit="một suất",
+                pros=["cá chiên vàng, ăn với thì là"],
+                recommendation=4,
+            ),
+            _m(
+                "kem_trang_tien",
+                "Kem Tràng Tiền",
+                [2],
+                price_min=15000,
+                price_max=15000,
+                currency="VND",
+                pros=["rẻ, mát"],
+                recommendation=4,
+            ),
+            _m(
+                "cong_trang_tien",
+                "Cộng cà phê Tràng Tiền",
+                [2],
+                opening_hours_text="mở tới 23h30",
+                pros=["cà phê cốt dừa"],
+                recommendation=4,
+            ),
+            _m(
+                "cafe_giang",
+                "cà phê Giảng",
+                [3],
+                opening_hours_text="8h - 23h",
+                opening_hours_osm="Mo-Su 08:00-23:00",
+                pros=["tối vẫn mở"],
+                recommendation=5,
+            ),
+        ],
+    },
+    {
+        "key": "review_pho",
+        "name": "review_pho_ha_noi.mp4",
+        "date": "2026-11-10",
+        "chunks": [
+            (
+                0,
+                0,
+                34_000,
+                "Review thật lòng quán phở bò tái lăn Lò Đúc. Phở ngon, nhưng giờ cao điểm phải xếp hàng hai mươi phút.",
+                "PHỞ BÒ TÁI LĂN",
+            ),
+            (
+                1,
+                32_000,
+                66_000,
+                "Chỗ ngồi thì khá chật, ghế nhựa thấp, bàn ghép chung với khách lạ, không hợp đi nhóm đông. Nhân viên phục vụ nhanh nhưng hơi vội.",
+                None,
+            ),
+            (
+                2,
+                64_000,
+                99_000,
+                "Nếu ngại đông thì qua bún bò Nam Bộ Bà Đạt ở Hàng Điếu, sáu mươi lăm nghìn một bát, rau thơm tươi, quán rộng rãi hơn.",
+                "BÚN BÒ NAM BỘ",
+            ),
+        ],
+        "mentions": [
+            _m(
+                "pho_thin",
+                "quán phở bò tái lăn Lò Đúc",
+                [0, 1],
+                price_min=65000,
+                price_max=75000,
+                currency="VND",
+                pros=["phở ngon"],
+                cons=["xếp hàng 20 phút giờ cao điểm", "chỗ ngồi chật, ghế nhựa thấp"],
+                recommendation=4,
+            ),
+            _m(
+                "bun_bo_nam_bo",
+                "Bún bò Nam Bộ Bà Đạt",
+                [2],
+                price_min=65000,
+                price_max=65000,
+                currency="VND",
+                pros=["rau thơm tươi", "quán rộng rãi"],
+                recommendation=4,
+            ),
+        ],
+    },
+]
+
+# Labelled questions for the retrieval evaluation (python -m travelrag.qa.eval).
+# relevant: place keys ("place:<key>") and chunks ("chunk:<video key>#<seq>").
+QA_EVAL: list[dict[str, Any]] = [
+    {"question": "Người review có nói gì về chỗ ngồi ở quán phở Lò Đúc không?", "relevant": ["chunk:review_pho#1", "place:pho_thin"]},
+    {"question": "pho thin mo cua may gio", "relevant": ["chunk:an_sap_pho_co#1", "place:pho_thin"]},
+    {"question": "Quán nào mở muộn sau 11 giờ đêm?", "relevant": ["place:bia_hoi_ta_hien", "place:cong_trang_tien", "place:cafe_giang", "place:xoi_yen"]},
+    {"question": "Cà phê trứng ở đâu ngon?", "relevant": ["chunk:an_sap_pho_co#2", "place:cafe_giang"]},
+    {"question": "Hoàng thành Thăng Long có mở cửa thứ Hai không?", "relevant": ["chunk:van_hoa_mot_ngay#1", "place:hoang_thanh"]},
+    {"question": "Where can I watch the sunset at a temple?", "relevant": ["chunk:van_hoa_mot_ngay#2", "place:chua_tran_quoc"]},
+    {"question": "Is the train street dangerous?", "relevant": ["chunk:van_hoa_mot_ngay#3", "place:pho_duong_tau"]},
+    {"question": "chả cá giá bao nhiêu", "relevant": ["chunk:ha_noi_ve_dem#1", "place:cha_ca_thang_long"]},
+]  # fmt: skip

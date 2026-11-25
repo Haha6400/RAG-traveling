@@ -1,7 +1,9 @@
 import uuid
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, Integer, String, delete, select
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Mapped, mapped_column
@@ -27,6 +29,10 @@ class VideoRow(Base):
     height: Mapped[int | None] = mapped_column(Integer)
     has_audio: Mapped[bool | None] = mapped_column(Boolean)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    language: Mapped[str | None] = mapped_column(String(16))
+    transcript: Mapped[list[dict[str, Any]] | None] = mapped_column(JSONB(none_as_null=True))
+    ocr: Mapped[list[dict[str, Any]] | None] = mapped_column(JSONB(none_as_null=True))
+    extracted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 _FIELDS = (
@@ -41,6 +47,10 @@ _FIELDS = (
     "height",
     "has_audio",
     "created_at",
+    "language",
+    "transcript",
+    "ocr",
+    "extracted_at",
 )
 
 

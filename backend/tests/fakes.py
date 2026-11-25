@@ -93,3 +93,104 @@ class JobHarness:
         self.uow = FakeUnitOfWork(self.publisher)
         self.queue = FakeQueue()
         self.service = JobService(self.repo, self.publisher, self.uow, self.queue)
+
+
+# --- Phase 1-3 fakes ---------------------------------------------------------------------------
+
+from collections.abc import Callable, Sequence  # noqa: E402
+from typing import Any  # noqa: E402
+
+from pydantic import BaseModel  # noqa: E402
+
+from travelrag.demo.offline import HashEmbedder, OverlapReranker  # noqa: E402
+from travelrag.llm.ports import LLMUnavailableError  # noqa: E402
+from travelrag.media.chunking import ChunkDraft  # noqa: E402
+from travelrag.ml.ports import OcrLine, Transcript, TranscriptSegment  # noqa: E402
+
+Handler = Callable[[str], BaseModel | Exception]
+
+
+class ScriptedLLM:
+    """LLM fake: one handler per task name; unknown tasks behave like a missing API key."""
+
+    def __init__(self, handlers: dict[str, Handler] | None = None) -> None:
+        self.handlers = handlers or {}
+        self.calls: list[tuple[str, str]] = []
+
+    async def generate(self, *, task: str, system: str, prompt: str, output: type, **_: Any) -> Any:
+        self.calls.append((task, prompt))
+        handler = self.handlers.get(task)
+        if handler is None:
+            raise LLMUnavailableError(f"no scripted response for {task}")
+        result = handler(prompt)
+        if isinstance(result, Exception):
+            raise result
+        assert isinstance(result, output), f"{task}: expected {output}, got {type(result)}"
+        return result
+
+    def tasks(self) -> list[str]:
+        return [t for t, _ in self.calls]
+
+
+class FakeML(HashEmbedder, OverlapReranker):
+    """Embedder + reranker (hash based), transcriber and OCR returning canned output."""
+
+    def __init__(
+        self, segments: list[tuple[int, int, str]] | None = None, ocr: list[str] | None = None
+    ) -> None:
+        self.segments = segments or []
+        self.ocr = ocr or []
+        self.transcribed = 0
+
+    async def transcribe(self, wav_16k_mono: bytes, language: str | None = None) -> Transcript:
+        self.transcribed += 1
+        return Transcript("vi", [TranscriptSegment(s, e, t) for s, e, t in self.segments])
+
+    async def read(self, images: list[bytes]) -> list[list[OcrLine]]:
+        return [[OcrLine(text, 0.9) for text in self.ocr] for _ in images]
+
+
+class MemoryChunks:
+    def __init__(self) -> None:
+        self.chunks: dict[uuid.UUID, list[ChunkDraft]] = {}
+
+    async def count_for_video(self, video_id: uuid.UUID) -> int:
+        return len(self.chunks.get(video_id, []))
+
+    async def add_chunks(
+        self, user_id: uuid.UUID, video_id: uuid.UUID, drafts: list[ChunkDraft]
+    ) -> None:
+        self.chunks.setdefault(video_id, []).extend(drafts)
+
+    async def for_video(self, video_id: uuid.UUID) -> Sequence[ChunkDraft]:
+        return self.chunks.get(video_id, [])
+
+
+class StubPlaces:
+    """Records what the pipeline hands to the places module."""
+
+    def __init__(self, needs_review: bool = False) -> None:
+        self.mentions: list[Any] = []
+        self.needs_review = needs_review
+        self.rebuilt: list[set[uuid.UUID]] = []
+
+    async def add_mentions(self, mentions: list[Any]) -> None:
+        self.mentions.extend(mentions)
+
+    async def resolve_video(self, video_id: uuid.UUID) -> tuple[set[uuid.UUID], bool]:
+        return {uuid.UUID(int=1)}, self.needs_review
+
+    async def rebuild_cards(self, place_ids: set[uuid.UUID]) -> None:
+        self.rebuilt.append(place_ids)
+
+
+class StubIndexer:
+    def __init__(self) -> None:
+        self.videos: list[uuid.UUID] = []
+
+    async def index_video_chunks(self, video_id: uuid.UUID) -> int:
+        self.videos.append(video_id)
+        return 0
+
+    async def index_cards(self, user_id: uuid.UUID, place_ids: set[uuid.UUID] | None = None) -> int:
+        return 0

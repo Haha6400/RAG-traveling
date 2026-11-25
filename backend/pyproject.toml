@@ -5,9 +5,14 @@ description = "Personal travel map built from review videos"
 requires-python = ">=3.12"
 dependencies = [
     "alembic>=1.13",
+    "anthropic>=2.12.0",
     "av>=19.0.2",
     "email-validator>=2.2",
     "fastapi>=0.115",
+    "httpx>=0.28.1",
+    "ortools>=9.15.6755",
+    "pgvector>=0.5.1",
+    "pillow>=13.0.0",
     "procrastinate>=3.0",
     "psycopg[binary]>=3.2",
     "pwdlib[argon2]>=0.2",
@@ -15,6 +20,7 @@ dependencies = [
     "pydantic-settings>=2.4",
     "pyjwt>=2.9",
     "python-multipart>=0.0.34",
+    "rapidfuzz>=3.14.6",
     "sqlalchemy[asyncio]>=2.1",
     "uvicorn[standard]>=0.30",
 ]
@@ -43,6 +49,9 @@ src = ["src", "tests"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "ASYNC", "SIM", "RUF"]
+# The formatter owns line length; E501 would only flag long user-facing strings.
+# RUF001: en dashes are intended in Vietnamese price ranges ("30.000–60.000 VND").
+ignore = ["E501", "RUF001"]
 
 [tool.mypy]
 python_version = "3.12"
@@ -51,10 +60,19 @@ mypy_path = "src"
 packages = ["travelrag"]
 plugins = ["pydantic.mypy"]
 
+[[tool.mypy.overrides]]
+module = ["ortools.*"]
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
+filterwarnings = [
+    # OR-Tools' SWIG bindings
+    "ignore:builtin type Swig.*:DeprecationWarning",
+    "ignore:builtin type swigvarlink.*:DeprecationWarning",
+]
 markers = [
     "integration: needs a migrated Postgres at TRAVELRAG_TEST_DATABASE_URL",
 ]

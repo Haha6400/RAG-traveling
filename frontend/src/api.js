@@ -34,8 +34,12 @@ async function request(method, path, { token, body } = {}) {
     headers,
     body: body === undefined ? undefined : JSON.stringify(body),
   })
-  const data = await response.json().catch(() => null)
-  if (!response.ok) throw new ApiError(response.status, data?.detail ?? response.statusText)
+  const data = response.status === 204 ? null : await response.json().catch(() => null)
+  if (!response.ok) {
+    const detail = data?.detail
+    const message = Array.isArray(detail) ? detail.map((d) => d.msg).join('; ') : detail
+    throw new ApiError(response.status, message ?? response.statusText)
+  }
   return data
 }
 
@@ -54,6 +58,33 @@ export const api = {
   deleteVideo: (token, id) => request('DELETE', `/videos/${id}`, { token }),
   videoFileUrl: (token, id) => `/api/videos/${id}/file?token=${encodeURIComponent(token)}`,
   uploadVideo,
+  transcript: (token, videoId) => request('GET', `/videos/${videoId}/transcript`, { token }),
+
+  // Phase 1: places and review
+  listPlaces: (token) => request('GET', '/places', { token }),
+  getPlace: (token, id) => request('GET', `/places/${id}`, { token }),
+  refreshSummary: (token, id) => request('POST', `/places/${id}/summary`, { token }),
+  setLocation: (token, id, lat, lng) =>
+    request('PATCH', `/places/${id}/location`, { token, body: { lat, lng } }),
+  listReviews: (token) => request('GET', '/reviews', { token }),
+  acceptCandidate: (token, id) => request('POST', `/reviews/candidates/${id}/accept`, { token }),
+  rejectMention: (token, id) => request('POST', `/reviews/mentions/${id}/reject`, { token }),
+
+  // Phase 2: Q&A
+  ask: (token, body) => request('POST', '/ask', { token, body }),
+
+  // Phase 3: trips
+  listTrips: (token) => request('GET', '/trips', { token }),
+  createTrip: (token, body) => request('POST', '/trips', { token, body }),
+  deleteTrip: (token, id) => request('DELETE', `/trips/${id}`, { token }),
+  replaceItem: (token, tripId, itemId, placeId) =>
+    request('POST', `/trips/${tripId}/items/${itemId}/replace`, {
+      token,
+      body: placeId ? { place_id: placeId } : {},
+    }),
+  removeItem: (token, tripId, itemId) => request('DELETE', `/trips/${tripId}/items/${itemId}`, { token }),
+  lockItem: (token, tripId, itemId, locked) =>
+    request('PATCH', `/trips/${tripId}/items/${itemId}`, { token, body: { locked } }),
 }
 
 // XMLHttpRequest instead of fetch: fetch cannot report upload progress.

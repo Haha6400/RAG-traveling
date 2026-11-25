@@ -24,6 +24,7 @@ class JobStage(StrEnum):
     OCR = "ocr"
     EXTRACT = "extract"
     RESOLVE = "resolve"
+    AGGREGATE = "aggregate"
     INDEX = "index"
 
 

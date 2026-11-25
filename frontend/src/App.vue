@@ -1,10 +1,31 @@
 <script setup>
-// Phase 0 test console: auth + dummy jobs + live progress over SSE.
-import { onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+// Test console: auth, videos + jobs (Phase 0/1), places (1), Q&A (2).
+import { onBeforeUnmount, onMounted, provide, reactive, ref, watch as watchValue } from 'vue'
 import { api, loadToken, saveToken } from './api.js'
+import AskPanel from './components/AskPanel.vue'
+import PlacesPanel from './components/PlacesPanel.vue'
 
-const STAGES = ['probe', 'asr', 'ocr', 'extract', 'resolve', 'index']
+const STAGES = ['probe', 'asr', 'ocr', 'extract', 'resolve', 'aggregate', 'index']
 const TERMINAL = new Set(['done', 'failed'])
+const TABS = ['videos', 'places', 'ask']
+
+function storedTab() {
+  try {
+    return TABS.includes(localStorage.getItem('travelrag.tab')) ? localStorage.getItem('travelrag.tab') : 'videos'
+  } catch {
+    return 'videos'
+  }
+}
+const tab = ref(storedTab())
+watchValue(tab, (value) => {
+  try {
+    localStorage.setItem('travelrag.tab', value)
+  } catch {
+    /* ignore */
+  }
+})
+const askScope = ref(null) // {id, name} when asking about one place
+const clip = ref(null) // {videoId, startMs, title} shown in the player overlay
 
 const token = ref(loadToken())
 const user = ref(null)
@@ -24,6 +45,18 @@ const streams = new Map() // job id -> EventSource
 function report(err) {
   error.value = err?.message ?? String(err)
 }
+
+function playClip(videoId, startMs, title) {
+  clip.value = { videoId, startMs: startMs ?? 0, title }
+}
+
+provide('token', token)
+provide('report', report)
+provide('playClip', playClip)
+provide('askAbout', (place) => {
+  askScope.value = { id: place.id, name: place.name }
+  tab.value = 'ask'
+})
 
 function addLog(line) {
   log.value.unshift(`${new Date().toLocaleTimeString()}  ${line}`)
@@ -227,6 +260,14 @@ onBeforeUnmount(() => streams.forEach((s) => s.close()))
         <button class="secondary" @click="logout">Log out</button>
       </section>
 
+      <nav class="tabs">
+        <button v-for="t in TABS" :key="t" :class="{ active: tab === t }" @click="tab = t">{{ t }}</button>
+      </nav>
+
+      <PlacesPanel v-if="tab === 'places'" />
+      <AskPanel v-else-if="tab === 'ask'" :scope="askScope" @clear-scope="askScope = null" />
+
+      <template v-if="tab === 'videos'">
       <section class="card">
         <h2>Videos</h2>
         <form class="row wrap" @submit.prevent="uploadSelected">
@@ -331,6 +372,24 @@ onBeforeUnmount(() => streams.forEach((s) => s.close()))
         <h2>Event log <small class="muted">(SSE)</small></h2>
         <pre>{{ log.join('\n') || 'Waiting for events…' }}</pre>
       </section>
+      </template>
     </template>
+
+    <div v-if="clip" class="overlay" @click.self="clip = null">
+      <div class="card player-card">
+        <div class="row spread">
+          <strong>{{ clip.title }}</strong>
+          <button class="small secondary" @click="clip = null">Close</button>
+        </div>
+        <video
+          :key="`${clip.videoId}-${clip.startMs}`"
+          class="player"
+          :src="`${api.videoFileUrl(token, clip.videoId)}#t=${Math.floor(clip.startMs / 1000)}`"
+          controls
+          autoplay
+        ></video>
+        <p class="muted small-text">Demo-seeded videos have no file, so they cannot play.</p>
+      </div>
+    </div>
   </main>
 </template>

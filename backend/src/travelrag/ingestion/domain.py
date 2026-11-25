@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import PurePath
+from typing import Any
 
 from travelrag.media.domain import VideoMetadata
 
@@ -69,6 +70,11 @@ class Video:
     height: int | None = None
     has_audio: bool | None = None
     created_at: datetime = field(default_factory=_now)
+    # Intermediate pipeline results (see ingestion.pipeline): None = stage not run yet.
+    language: str | None = None
+    transcript: list[dict[str, Any]] | None = None  # [{start_ms, end_ms, text}]
+    ocr: list[dict[str, Any]] | None = None  # [{ts_ms, lines: [str]}]
+    extracted_at: datetime | None = None
 
     def apply_metadata(self, metadata: VideoMetadata) -> None:
         self.duration_ms = metadata.duration_ms
