@@ -10,7 +10,8 @@ import travelrag.core.users
 import travelrag.ingestion.adapters.sqlalchemy_repo
 import travelrag.jobs.adapters.sqlalchemy_repo
 import travelrag.media.adapters.chunk_repo
-import travelrag.places.adapters.sqlalchemy_repo  # noqa: F401
+import travelrag.places.adapters.sqlalchemy_repo
+import travelrag.planning.adapters.sqlalchemy_repo  # noqa: F401
 from travelrag.core.config import get_settings
 from travelrag.core.db import Base
 

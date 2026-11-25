@@ -1,6 +1,3 @@
-import uuid
-from typing import Any
-
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from travelrag.core.config import get_settings
@@ -12,16 +9,8 @@ from travelrag.ml.factory import get_ml_client
 from travelrag.ml.ports import Embedder, Reranker
 from travelrag.places.adapters.sqlalchemy_repo import SqlAlchemyPlaceRepository
 from travelrag.qa.adapters.sql_retriever import SqlRetriever
+from travelrag.qa.adapters.trip_reader import SqlTripReader
 from travelrag.qa.service import QAService
-
-
-class _NoTrips:
-    """Trip planning arrives in Phase 3; until then plan questions find no trip."""
-
-    async def trip_context(
-        self, user_id: uuid.UUID, trip_id: uuid.UUID | None
-    ) -> dict[str, Any] | None:
-        return None
 
 
 def build_qa_service(
@@ -40,7 +29,7 @@ def build_qa_service(
         reranker=reranker or ml,
         retriever=SqlRetriever(session, s.sparse_dim),
         catalog=SqlAlchemyPlaceRepository(session),
-        trips=_NoTrips(),
+        trips=SqlTripReader(session),
         router=router or get_router(),
         candidates=s.retrieval_candidates,
         keep=s.retrieval_keep,

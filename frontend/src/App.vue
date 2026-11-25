@@ -1,13 +1,14 @@
 <script setup>
-// Test console: auth, videos + jobs (Phase 0/1), places (1), Q&A (2).
+// Test console: auth, videos + jobs (Phase 0/1), places (1), Q&A (2), trips (3).
 import { onBeforeUnmount, onMounted, provide, reactive, ref, watch as watchValue } from 'vue'
 import { api, loadToken, saveToken } from './api.js'
 import AskPanel from './components/AskPanel.vue'
 import PlacesPanel from './components/PlacesPanel.vue'
+import TripsPanel from './components/TripsPanel.vue'
 
 const STAGES = ['probe', 'asr', 'ocr', 'extract', 'resolve', 'aggregate', 'index']
 const TERMINAL = new Set(['done', 'failed'])
-const TABS = ['videos', 'places', 'ask']
+const TABS = ['videos', 'places', 'ask', 'trips']
 
 function storedTab() {
   try {
@@ -266,6 +267,7 @@ onBeforeUnmount(() => streams.forEach((s) => s.close()))
 
       <PlacesPanel v-if="tab === 'places'" />
       <AskPanel v-else-if="tab === 'ask'" :scope="askScope" @clear-scope="askScope = null" />
+      <TripsPanel v-else-if="tab === 'trips'" />
 
       <template v-if="tab === 'videos'">
       <section class="card">

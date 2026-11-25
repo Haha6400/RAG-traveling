@@ -88,6 +88,7 @@ def world(monkeypatch: pytest.MonkeyPatch) -> World:
     w = World(llm=ScriptedLLM(), ml=FakeML())
     for target in (
         "travelrag.places.factory.get_llm",
+        "travelrag.planning.factory.get_llm",
         "travelrag.qa.factory.get_llm",
         "travelrag.worker.tasks.get_llm",
     ):
@@ -99,7 +100,7 @@ def world(monkeypatch: pytest.MonkeyPatch) -> World:
     ):
         monkeypatch.setattr(target, lambda: w.ml)
     monkeypatch.setattr("travelrag.places.factory.get_geocoder", lambda: DemoGeocoder())
-    for target in ("travelrag.qa.factory.get_router",):
+    for target in ("travelrag.planning.factory.get_router", "travelrag.qa.factory.get_router"):
         monkeypatch.setattr(target, lambda: StraightLineRouter())
     return w
 
