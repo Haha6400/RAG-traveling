@@ -116,6 +116,21 @@ changed (`summary_stale`) and the user opens the place (`GET /api/places/{id}`),
   conflicts). Cards carry `version` / `indexed_version`, so only changed cards are re-embedded.
 - `search_text` (unaccented) on both feeds the trigram branch of retrieval.
 
+### Deleting a video
+`DELETE /api/videos/{id}` removes the file, jobs, transcript chunks and mentions, then updates
+every place the video mentioned (`PlacesService.refresh_after_removal`):
+- **no other video mentions it**: the place is deleted, together with its card, aliases,
+  review candidates and any trip stops at it
+- **other videos still mention it**: aliases only the deleted video used are dropped, the LLM
+  summary is cleared (it may quote the deleted video and is regenerated lazily), and the card
+  is recomputed from the remaining mentions. Price, hours, pros/cons and conflicts then follow,
+  and the card is re-embedded (best effort, if ml-service is up)
+- a mention still waiting for review whose candidate places were all deleted becomes a new
+  place, and its job continues
+
+Existing trips lose stops at deleted places. Their remaining stops and notes are not
+re-planned: build a new trip to use the updated cards.
+
 ## API
 
 | Method | Path | |
@@ -138,6 +153,7 @@ Automated (fake models, real Postgres):
 | `tests/unit/test_phase1.py` | chunk sizes, overlap and OCR windows; extraction cleanup and timestamps; match scoring; aggregation rules and conflicts; stage order; review → resume without re-running ASR or the LLM |
 | `tests/unit/test_media_and_storage.py` | probing real generated videos |
 | `tests/unit/test_geo.py` | Vietnamese normalisation, opening-hours parser, straight-line router |
+| `tests/integration/test_video_deletion.py` | deleting a video removes places only it mentioned, recomputes shared cards (price, cons, aliases, conflicts, summary, embedding), drops its stops from trips, keeps it out of Q&A, and settles reviews left without candidates |
 | `tests/integration/test_phase1_pipeline.py` | upload → worker → places + cards + transcript via the API; `needs_review` → accept → job resumes → done; reject → new place; pin location; demo seed merges three names of one pho shop and flags exactly one conflict |
 
 Manual: see [testing.md](testing.md).

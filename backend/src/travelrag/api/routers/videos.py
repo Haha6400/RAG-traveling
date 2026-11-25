@@ -1,4 +1,5 @@
 import uuid
+from contextlib import suppress
 from datetime import datetime
 from typing import Annotated, Any
 
@@ -9,6 +10,7 @@ from pydantic import BaseModel
 from travelrag.api.deps import CurrentUserDep, SessionDep, get_job_queue, resolve_user
 from travelrag.api.routers.jobs import JobOut
 from travelrag.core.db import get_sessionmaker
+from travelrag.indexing.service import IndexingService
 from travelrag.ingestion.adapters.local_upload import LocalUploadSource
 from travelrag.ingestion.domain import (
     DuplicateVideoError,
@@ -21,6 +23,8 @@ from travelrag.ingestion.factory import build_ingestion_service, build_video_sto
 from travelrag.ingestion.service import IngestionService
 from travelrag.jobs.domain import Job
 from travelrag.jobs.ports import JobQueue
+from travelrag.ml.factory import get_ml_client
+from travelrag.ml.ports import MLUnavailableError
 
 router = APIRouter(prefix="/videos", tags=["videos"])
 
@@ -105,12 +109,19 @@ async def get_video(video_id: uuid.UUID, user: CurrentUserDep, service: Ingestio
 
 
 @router.delete("/{video_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_video(video_id: uuid.UUID, user: CurrentUserDep, service: IngestionDep) -> None:
-    """Delete the video, its file and its jobs."""
+async def delete_video(
+    video_id: uuid.UUID, user: CurrentUserDep, service: IngestionDep, session: SessionDep
+) -> None:
+    """Delete the video with its file, jobs and transcript. Places it mentioned are updated:
+    removed when no other video mentions them, otherwise their cards are recomputed."""
     try:
-        await service.delete(video_id, user.id)
+        changed = await service.delete(video_id, user.id)
     except VideoNotFoundError as exc:
         raise _not_found() from exc
+    # If ml-service is down the cards keep their old embedding until the next indexing run;
+    # the text used for answers is already up to date.
+    with suppress(MLUnavailableError):
+        await IndexingService(session, get_ml_client()).index_cards(user.id, changed)
 
 
 @router.get("/{video_id}/file", response_class=FileResponse)

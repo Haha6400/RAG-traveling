@@ -9,6 +9,7 @@ from travelrag.ingestion.adapters.sqlalchemy_repo import SqlAlchemyVideoReposito
 from travelrag.ingestion.service import IngestionService
 from travelrag.jobs.factory import build_job_service
 from travelrag.jobs.ports import JobQueue
+from travelrag.places.factory import build_places_service
 
 
 def build_video_storage() -> LocalVideoStorage:
@@ -24,4 +25,5 @@ def build_ingestion_service(
         jobs=build_job_service(session, queue),
         uow=SessionUnitOfWork(session),
         max_upload_bytes=get_settings().max_upload_bytes,
+        places=build_places_service(session, queue=queue),
     )

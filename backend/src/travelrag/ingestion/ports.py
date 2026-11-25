@@ -73,3 +73,13 @@ class JobScheduler(Protocol):
     ) -> Job: ...
 
     async def latest_for_videos(self, video_ids: list[uuid.UUID]) -> dict[uuid.UUID, Job]: ...
+
+
+class PlaceCleanup(Protocol):
+    """The slice of the places module that video deletion needs (implemented by PlacesService)."""
+
+    async def places_for_video(self, video_id: uuid.UUID) -> set[uuid.UUID]: ...
+
+    async def refresh_after_removal(
+        self, user_id: uuid.UUID, place_ids: set[uuid.UUID]
+    ) -> set[uuid.UUID]: ...

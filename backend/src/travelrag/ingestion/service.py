@@ -8,7 +8,13 @@ from travelrag.ingestion.domain import (
     storage_key,
     video_extension,
 )
-from travelrag.ingestion.ports import JobScheduler, VideoRepository, VideoSource, VideoStorage
+from travelrag.ingestion.ports import (
+    JobScheduler,
+    PlaceCleanup,
+    VideoRepository,
+    VideoSource,
+    VideoStorage,
+)
 from travelrag.jobs.domain import Job, JobKind
 from travelrag.jobs.ports import UnitOfWork
 
@@ -27,12 +33,14 @@ class IngestionService:
         jobs: JobScheduler,
         uow: UnitOfWork,
         max_upload_bytes: int,
+        places: PlaceCleanup | None = None,
     ) -> None:
         self._videos = videos
         self._storage = storage
         self._jobs = jobs
         self._uow = uow
         self._max_upload_bytes = max_upload_bytes
+        self._places = places
 
     async def ingest(self, user_id: uuid.UUID, source: VideoSource) -> VideoWithJob:
         """Store the file, record the video and schedule its processing job."""
@@ -81,8 +89,15 @@ class IngestionService:
     async def latest_job(self, video_id: uuid.UUID) -> Job | None:
         return (await self._jobs.latest_for_videos([video_id])).get(video_id)
 
-    async def delete(self, video_id: uuid.UUID, user_id: uuid.UUID) -> None:
+    async def delete(self, video_id: uuid.UUID, user_id: uuid.UUID) -> set[uuid.UUID]:
+        """Delete the video with its file, jobs, chunks and mentions, then bring the places it
+        mentioned up to date. Returns the ids of places whose card changed (to re-index)."""
         video = await self.get_for_user(video_id, user_id)
+        affected = await self._places.places_for_video(video.id) if self._places else set()
         await self._videos.delete(video.id)
         await self._uow.commit()
+        changed: set[uuid.UUID] = set()
+        if self._places is not None:
+            changed = await self._places.refresh_after_removal(user_id, affected)
         await self._storage.delete(video.storage_key)
+        return changed

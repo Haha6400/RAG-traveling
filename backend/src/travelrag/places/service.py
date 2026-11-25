@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 from pydantic import BaseModel
 
+from travelrag.core.text import normalize_name
 from travelrag.geo.domain import OsmPlace
 from travelrag.geo.ports import Geocoder
 from travelrag.jobs.ports import UnitOfWork
@@ -291,7 +292,10 @@ class PlacesService:
                 card.aggregated, card.conflicts = aggregated, conflicts
                 card.summary_stale = True
                 card.version += 1
-            card.card_text = card_text(place, aggregated, conflicts, card.summary_text)
+            text = card_text(place, aggregated, conflicts, card.summary_text)
+            if text != card.card_text and card.card_text:
+                card.version += 1  # e.g. aliases changed: the index must follow the text
+            card.card_text = text
             await self._repo.save_card(card)
         await self._uow.commit()
 
@@ -327,6 +331,54 @@ class PlacesService:
         await self._repo.save_card(card)
         await self._uow.commit()
         return card
+
+    # --- video removal ------------------------------------------------------------------------
+
+    async def places_for_video(self, video_id: uuid.UUID) -> set[uuid.UUID]:
+        return {m.place_id for m in await self._repo.mentions_for_video(video_id) if m.place_id}
+
+    async def refresh_after_removal(
+        self, user_id: uuid.UUID, place_ids: set[uuid.UUID]
+    ) -> set[uuid.UUID]:
+        """Call after a video (and so its mentions) is gone. Places no video mentions any more
+        are deleted; the others drop aliases that only that video used, lose their LLM summary
+        (it may quote the deleted video) and get their card recomputed from what remains.
+        Returns the places whose card changed, for re-indexing."""
+        updated: set[uuid.UUID] = set()
+        for place_id in place_ids:
+            place = await self._repo.get_place(place_id)
+            if place is None or place.user_id != user_id:
+                continue
+            sources = await self._repo.sources_for_place(place_id)
+            if not sources:
+                await self._repo.delete_place(place_id)
+                continue
+            said = {normalize_name(s.mention.name) for s in sources}
+            place.aliases = [a for a in place.aliases if normalize_name(a) in said]
+            await self._repo.update_place(place)
+            card = await self._repo.get_card(place_id)
+            if card is not None:
+                card.summary_text, card.summary_stale = None, True
+                await self._repo.save_card(card)
+            updated.add(place_id)
+        await self._uow.commit()
+        await self.rebuild_cards(updated)
+        updated |= await self._settle_orphaned_reviews(user_id)
+        return updated
+
+    async def _settle_orphaned_reviews(self, user_id: uuid.UUID) -> set[uuid.UUID]:
+        """A mention waiting for review whose candidate places were all deleted can no longer
+        be answered: it becomes a new place (and its job may continue)."""
+        created: set[uuid.UUID] = set()
+        for mention in await self._repo.mentions_in_review(user_id):
+            pending = [
+                c
+                for c in await self._repo.candidates_for_mention(mention.id)
+                if c.status == "pending"
+            ]
+            if not pending:
+                created.add((await self.reject_candidates(mention.id, user_id)).id)
+        return created
 
     # --- reads / edits --------------------------------------------------------------------------
 

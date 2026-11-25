@@ -272,6 +272,9 @@ class SqlAlchemyPlaceRepository:
         ).scalar_one_or_none()
         return (await self._many([row]))[0] if row else None
 
+    async def delete_place(self, place_id: uuid.UUID) -> None:
+        await self._s.execute(delete(PlaceRow).where(PlaceRow.id == place_id))
+
     # --- mentions ------------------------------------------------------------------------------
 
     async def add_mention(self, mention: Mention) -> None:
