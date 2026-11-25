@@ -80,7 +80,7 @@ const fmt = (ms) => `${String(Math.floor(ms / 60000)).padStart(2, '0')}:${String
     </ul>
     <p v-if="h.places.length" class="muted">
       On your map:
-      <span v-for="p in h.places" :key="p.id" class="chip static">{{ p.name }}<template v-if="p.lat"> ({{ p.lat.toFixed(4) }}, {{ p.lng.toFixed(4) }})</template></span>
+      <RouterLink v-for="p in h.places" :key="p.id" :to="{ name: 'map', query: { place: p.id } }" class="chip static">📍 {{ p.name }}</RouterLink>
     </p>
   </section>
 </template>

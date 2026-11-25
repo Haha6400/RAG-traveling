@@ -38,6 +38,11 @@ continues where it stopped. Neither ASR nor the LLM runs twice for the same vide
   frame only when its 64-bit difference hash (dHash) differs from the last kept frame by more
   than 10 bits. That single pass catches scene cuts and drops near-identical frames, so
   PySceneDetect / imagehash are not needed (a change from PLAN.md). At most 120 frames per video.
+- EasyOCR returns one box per word group, often splitting a line ("39", "Hàng", "Cót") and in
+  no reliable order. ml-service (`text_lines.py`) joins boxes that share a row (vertical overlap
+  ≥ 50 % with the row's first box, horizontal gap ≤ 1.5 line heights) left to right, and orders
+  lines top to bottom, so an overlay reads "LAN CAN | 39 Hàng Cót". A line's confidence is the
+  mean of its words, weighted by length.
 - OCR lines with confidence < 0.4 or shorter than 2 characters are discarded.
 - On-screen text often fixes ASR mistakes. In the end-to-end test with a synthesised voice, ASR
   heard "phở *thịn*" while OCR read "PHỞ THÌN | 13 LÒ ĐÚC".
@@ -68,9 +73,14 @@ continues where it stopped. Neither ASR nor the LLM runs twice for the same vide
 ### Resolution (`places/service.py`)
 For each mention:
 1. **Existing places**: trigram search on the normalised name (`name_norm`) and aliases.
-2. **OSM**: geocode the mention's area (or `TRAVELRAG_DEFAULT_REGION`) with Nominatim, then
-   search the name inside that bounding box (Overpass as fallback). POIs already on the user's
-   map (same OSM id) count as existing places.
+2. **OSM**: geocode the mention's area with Nominatim, then search the name inside that
+   bounding box (Overpass as fallback). POIs already on the user's map (same OSM id) count as
+   existing places.
+   - Only results of category `boundary` or `place` count as an area. Free-text search also
+     ranks POIs: "Phố cổ, Hà Nội" returns the restaurant "Phở Cồ" first, whose tiny box used to
+     hide every other place.
+   - If the area is unknown or not found, `TRAVELRAG_DEFAULT_REGION` is searched instead, never
+     the whole world. OSM hits are then not counted as agreeing on area.
 3. **Score** = `0.6 · name + 0.25 · area + 0.15 · category`
    - name: max(token-set ratio, ratio) on unaccented names with generic words removed
      ("quán", "nhà hàng", "cà phê"…)
@@ -85,6 +95,14 @@ For each mention:
    | ≥ 0.85 (`RESOLVE_AUTO_MERGE`) | attach; the mention's name becomes an alias |
    | 0.60 – 0.85 (`RESOLVE_ASK_USER`) | up to 3 candidates; mention → `review`; job → `needs_review` |
    | < 0.60 | new place (from the OSM POI if there was one, otherwise name + area only) |
+
+5. **Address pin**: a place that still has no coordinates (not on OSM) but whose mention has an
+   `address_hint` is geocoded by address inside the same box. Only street-sized results (span
+   ≤ 0.015°, about 1.5 km) are accepted. House numbers are rarely mapped in Vietnam, so the pin
+   usually sits on the right street rather than the exact door, and the place card says so. A
+   ward- or city-level answer is rejected, because its centre would look precise and be wrong.
+   The extraction prompt (`extract-v2`) asks for the on-screen address explicitly, since
+   videos often show it in an overlay and never say it.
 
 **Review**: `GET /api/reviews` lists the pending questions ("Is this *X*?"). `POST
 /api/reviews/candidates/{id}/accept` attaches the mention, and `POST
@@ -136,6 +154,7 @@ re-planned: build a new trip to use the updated cards.
 | Method | Path | |
 |---|---|---|
 | GET | `/api/videos/{id}/transcript` | chunks with timestamps and OCR text |
+| GET | `/api/videos/{id}/extraction` | what the LLM concluded: each extracted place with every field (null = not stated), confidence, time range, and its status (attached to which place / waiting for review) |
 | GET | `/api/places` | the map: one entry per place (price, rating, #videos, conflict flag) |
 | GET | `/api/places/{id}` | card, conflicts, summary (lazily generated), mentions with video + timestamp |
 | POST | `/api/places/{id}/summary` | regenerate the summary |
@@ -153,7 +172,9 @@ Automated (fake models, real Postgres):
 | `tests/unit/test_phase1.py` | chunk sizes, overlap and OCR windows; extraction cleanup and timestamps; match scoring; aggregation rules and conflicts; stage order; review → resume without re-running ASR or the LLM |
 | `tests/unit/test_media_and_storage.py` | probing real generated videos |
 | `tests/unit/test_geo.py` | Vietnamese normalisation, opening-hours parser, straight-line router |
+| `tests/unit/test_osm_geocoder.py` | on recorded Nominatim answers: area boxes skip POIs ("Phở Cồ"); address → street-level point; ward-level answer rejected |
+| `ml-service/tests/test_text_lines.py` | OCR word boxes → lines in reading order, no chaining across lines (`cd ml-service && uv run --with pytest python -m pytest tests`) |
 | `tests/integration/test_video_deletion.py` | deleting a video removes places only it mentioned, recomputes shared cards (price, cons, aliases, conflicts, summary, embedding), drops its stops from trips, keeps it out of Q&A, and settles reviews left without candidates |
-| `tests/integration/test_phase1_pipeline.py` | upload → worker → places + cards + transcript via the API; `needs_review` → accept → job resumes → done; reject → new place; pin location; demo seed merges three names of one pho shop and flags exactly one conflict |
+| `tests/integration/test_phase1_pipeline.py` | upload → worker → places + cards + transcript via the API; `needs_review` → accept → job resumes → done; reject → new place; pin location; a place unknown to OSM is pinned from its on-screen address; demo seed merges three names of one pho shop and flags exactly one conflict |
 
 Manual: see [testing.md](testing.md).

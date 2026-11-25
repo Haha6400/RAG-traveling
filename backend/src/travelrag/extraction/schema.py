@@ -7,7 +7,10 @@ class ExtractedMention(BaseModel):
     name: str = Field(description="Place name as said or shown in the video")
     category: Category
     area: str | None = Field(description="District / city mentioned, e.g. 'Hoàn Kiếm, Hà Nội'")
-    address_hint: str | None = Field(description="Street address or landmark if stated")
+    address_hint: str | None = Field(
+        description="Street address as said or shown on screen, e.g. '39 Hàng Cót', or a "
+        "landmark if no address is given"
+    )
     price_min: int | None = Field(description="Lowest price mentioned, as an integer amount")
     price_max: int | None = Field(description="Highest price mentioned, as an integer amount")
     currency: str | None = Field(description="ISO currency code, e.g. VND, JPY")

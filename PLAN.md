@@ -375,7 +375,7 @@ Details and tests: [docs/phase-3-planning.md](docs/phase-3-planning.md). Restaur
 | # | Item | Notes |
 |---|---|---|
 | Q1 | ~~Which LLM provider / model?~~ | **Decided:** Claude (`claude-opus-5-5`), structured outputs, server-side refusal fallback. Tests use a scripted fake |
-| Q2 | Which frontend? | The map needs MapLibre/Leaflet + OSM tiles. Not covered in this plan yet |
+| Q2 | ~~Which frontend?~~ | **Decided:** Vue 3 + vue-router; map with Leaflet + OSM raster tiles now, MapLibre GL JS + OpenFreeMap before production or map layers (trip routes). See [docs/frontend-map.md](docs/frontend-map.md) |
 | Q3 | ~~How does the API embed queries and rerank for live Q&A?~~ | **Decided:** our own `ml-service/` (bge-m3 dense+sparse, reranker, ASR, OCR), run natively on the host for the Apple GPU; api and worker call it over HTTP |
 | Q4 | GPU infrastructure | Embeddings and rerank run on MPS (Apple GPU); faster-whisper runs on CPU on macOS. A 10 s clip takes a few seconds per stage once the models are loaded; measure on real 1–3 min videos |
 | Q5 | The public Nominatim instance allows 1 request/second and forbids heavy use | Use the public instance with caching in dev. Self-host Nominatim/Overpass in production |

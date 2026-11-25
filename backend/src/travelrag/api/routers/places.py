@@ -39,6 +39,9 @@ class PlaceBrief(BaseModel):
     lng: float | None
     aliases: list[str]
     price: str | None = None
+    price_min: int | None = None  # numeric range, for filtering
+    price_max: int | None = None
+    currency: str | None = None
     rating: float | None = None
     videos: int = 0
     has_conflicts: bool = False
@@ -58,6 +61,9 @@ class PlaceBrief(BaseModel):
             lng=place.lng,
             aliases=place.aliases,
             price=format_price(agg.get("price")),
+            price_min=(agg.get("price") or {}).get("min"),
+            price_max=(agg.get("price") or {}).get("max"),
+            currency=(agg.get("price") or {}).get("currency"),
             rating=(agg.get("recommendation") or {}).get("mean"),
             videos=agg.get("videos") or 0,
             has_conflicts=bool(conflicts),
@@ -282,3 +288,57 @@ async def transcript(
         ChunkOut(seq=c.seq, start_ms=c.start_ms, end_ms=c.end_ms, text=c.text, ocr_text=c.ocr_text)
         for c in chunks
     ]
+
+
+# --- extraction (what the LLM concluded from a video) ---------------------------------------
+
+
+class ExtractedMentionOut(BaseModel):
+    id: uuid.UUID
+    name: str
+    status: str  # resolved | review | pending
+    place_id: uuid.UUID | None
+    place_name: str | None  # the map place it was attached to (may differ from `name`)
+    confidence: float
+    start_ms: int
+    end_ms: int
+    details: dict[str, Any]  # the extraction payload: category, area, address_hint, prices...
+
+
+class ExtractionOut(BaseModel):
+    extracted_at: str | None
+    language: str | None
+    mentions: list[ExtractedMentionOut]
+
+
+@router.get("/videos/{video_id}/extraction")
+async def extraction(
+    video_id: uuid.UUID, user: CurrentUserDep, session: SessionDep
+) -> ExtractionOut:
+    """The places the LLM extracted from this video, with every field it filled, and what
+    became of each one (attached to a place, waiting for review)."""
+    video = await SqlAlchemyVideoRepository(session).get(video_id)
+    if video is None or video.user_id != user.id:
+        raise _not_found("Video")
+    repo = SqlAlchemyPlaceRepository(session)
+    mentions = []
+    for m in await repo.mentions_for_video(video_id):
+        place = await repo.get_place(m.place_id) if m.place_id else None
+        mentions.append(
+            ExtractedMentionOut(
+                id=m.id,
+                name=m.name,
+                status=m.status.value,
+                place_id=m.place_id,
+                place_name=place.name if place else None,
+                confidence=m.confidence,
+                start_ms=m.source_start_ms,
+                end_ms=m.source_end_ms,
+                details=m.payload,
+            )
+        )
+    return ExtractionOut(
+        extracted_at=video.extracted_at.isoformat() if video.extracted_at else None,
+        language=video.language,
+        mentions=mentions,
+    )

@@ -16,6 +16,11 @@ class Geocoder(Protocol):
         """POIs whose name resembles `name`, inside `bbox` when given."""
         ...
 
+    async def geocode_address(self, address: str, bbox: BBox | None) -> LatLng | None:
+        """A point for a street address (house or street level), or None. Never a whole
+        district or city: a pin there would look precise and be wrong."""
+        ...
+
 
 class RouteProvider(Protocol):
     async def matrix(self, points: list[LatLng], mode: TravelMode) -> TravelMatrix: ...

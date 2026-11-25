@@ -1,0 +1,32 @@
+{
+  "case": "trip-notes",
+  "model": "claude-opus-5-5",
+  "recorded_at": "2026-11-25T06:32:26+00:00",
+  "calls": [
+    {
+      "task": "trip_notes",
+      "key": "8bf6b78e16e87ab1",
+      "prompt": "Traveller preferences: {\"budget\":null,\"currency\":\"VND\",\"pace\":\"balanced\",\"priorities\":[\"food\",\"culture\"]}\nItems:\n[\n {\n  \"item_id\": \"<id1>\",\n  \"day\": 1,\n  \"time\": \"08:00-09:00\",\n  \"name\": \"Văn Miếu - Quốc Tử Giám\",\n  \"category\": \"attraction\",\n  \"price\": \"70.000 VND\",\n  \"rating\": 5.0,\n  \"pros\": [\n   \"hợp chụp ảnh áo dài\"\n  ],\n  \"cons\": [],\n  \"best_time\": [\n   \"buổi sáng\"\n  ],\n  \"summary\": null\n },\n {\n  \"item_id\": \"<id2>\",\n  \"day\": 1,\n  \"time\": \"11:00-12:00\",\n  \"name\": \"Bún chả Hương Liên\",\n  \"category\": \"restaurant\",\n  \"price\": \"40.000–90.000 VND\",\n  \"rating\": 4.0,\n  \"pros\": [\n   \"nổi tiếng vì Obama từng ăn\"\n  ],\n  \"cons\": [],\n  \"best_time\": [],\n  \"summary\": null\n },\n {\n  \"item_id\": \"<id3>\",\n  \"day\": 1,\n  \"time\": \"13:00-14:00\",\n  \"name\": \"Cà phê Giảng\",\n  \"category\": \"cafe\",\n  \"price\": \"35.000 VND\",\n  \"rating\": 5.0,\n  \"pros\": [\n   \"cà phê trứng béo, ngọt vừa\",\n   \"không tanh\",\n   \"tối vẫn mở\"\n  ],\n  \"cons\": [],\n  \"best_time\": [],\n  \"summary\": null\n },\n {\n  \"item_id\": \"<id4>\",\n  \"day\": 1,\n  \"time\": \"15:00-16:00\",\n  \"name\": \"Đền Ngọc Sơn\",\n  \"category\": \"temple\",\n  \"price\": \"30.000 VND\",\n  \"rating\": 4.0,\n  \"pros\": [\n   \"cầu Thê Húc đẹp\"\n  ],\n  \"cons\": [],\n  \"best_time\": [\n   \"buổi tối\"\n  ],\n  \"summary\": null\n }\n]",
+      "output": {
+        "notes": [
+          {
+            "item_id": "<id1>",
+            "note": "Di tích văn hóa được đánh giá 5 sao, rất hợp để chụp ảnh áo dài. Nên đến vào buổi sáng như lịch trình, vé vào cửa 70.000 VND."
+          },
+          {
+            "item_id": "<id2>",
+            "note": "Quán bún chả nổi tiếng vì Obama từng ghé ăn, đáng thử cho người mê ẩm thực. Giá khoảng 40.000–90.000 VND."
+          },
+          {
+            "item_id": "<id3>",
+            "note": "Nhất định gọi cà phê trứng béo, ngọt vừa và không tanh, giá 35.000 VND. Quán tối vẫn mở nếu muốn quay lại lần nữa."
+          },
+          {
+            "item_id": "<id4>",
+            "note": "Ngôi đền có cầu Thê Húc rất đẹp, vé 30.000 VND. Cảnh được đánh giá đẹp nhất vào buổi tối, nếu tiện có thể ghé lại ngắm cầu khi lên đèn."
+          }
+        ]
+      }
+    }
+  ]
+}

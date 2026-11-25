@@ -14,6 +14,8 @@ import torch
 from huggingface_hub import hf_hub_download
 from transformers import AutoModel, AutoModelForSequenceClassification, AutoTokenizer
 
+from ml_service.text_lines import group_lines
+
 logger = logging.getLogger(__name__)
 
 EMBED_MODEL = os.environ.get("ML_EMBED_MODEL", "BAAI/bge-m3")
@@ -146,10 +148,7 @@ class Ocr:
         from PIL import Image
 
         image = np.array(Image.open(io.BytesIO(image_bytes)).convert("RGB"))
-        return [
-            {"text": text, "confidence": float(conf)}
-            for _, text, conf in self.reader.readtext(image)
-        ]
+        return group_lines(self.reader.readtext(image))
 
 
 def _read_wav(data: bytes) -> np.ndarray:

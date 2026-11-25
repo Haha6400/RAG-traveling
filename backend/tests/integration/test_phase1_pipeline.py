@@ -67,6 +67,7 @@ async def test_video_becomes_places_with_cards_and_sources(
     pho = places["Phở Thìn Lò Đúc"]
     assert pho["lat"] is not None  # matched to the (demo) OSM record
     assert pho["price"] == "60.000–75.000 VND"
+    assert (pho["price_min"], pho["price_max"], pho["currency"]) == (60000, 75000, "VND")
 
     detail = (await client.get(f"/api/places/{pho['id']}", headers=auth_headers)).json()
     assert detail["osm"]["opening_hours"] == "Mo-Su 06:00-21:00"
@@ -156,6 +157,47 @@ async def test_rejecting_candidates_creates_a_new_place(
         headers=auth_headers,
     )
     assert (pinned.json()["lat"], pinned.json()["lng"]) == (21.03, 105.84)
+
+
+async def test_place_unknown_to_osm_is_pinned_from_its_on_screen_address(
+    client: httpx.AsyncClient, auth_headers: dict[str, str], world: World, tmp_path: Path
+) -> None:
+    # The real case: a cafe OSM does not know, its address only on screen, and an area name
+    # ("Phố cổ") that Nominatim does not resolve to a box. It must still get a pin.
+    world.ml.segments = [
+        (0, 20_000, "Quán cà phê ban công nhìn xuống ngắm phố cổ, chiều đẹp nhất.")
+    ]
+    world.ml.ocr = ["LAN CAN", "39 Hàng Cót"]
+    world.llm.handlers["extract"] = _extract(
+        extracted("Lan Can", category=Category.CAFE, area="Phố cổ, Hà Nội",
+                  address_hint="39 Hàng Cót"),
+        extracted("Cà phê Mây", category=Category.CAFE, area="Phố cổ, Hà Nội"),
+    )  # fmt: skip
+    video = await _upload(client, auth_headers, make_video(tmp_path / "lancan.mp4", seconds=1))
+    await run_worker_until_idle()
+
+    places = {p["name"]: p for p in (await client.get("/api/places", headers=auth_headers)).json()}
+    lan_can = places["Lan Can"]
+    assert (lan_can["lat"], lan_can["lng"]) == (21.0376, 105.8471)  # street-level point
+    detail = (await client.get(f"/api/places/{lan_can['id']}", headers=auth_headers)).json()
+    assert detail["place"]["address"] == "39 Hàng Cót"
+    assert detail["osm"] is None  # not an OSM record
+    assert places["Cà phê Mây"]["lat"] is None  # nothing to go on: the user pins it
+
+    # the Videos page shows what the LLM concluded, field by field, and where each place went
+    result = (
+        await client.get(f"/api/videos/{video['id']}/extraction", headers=auth_headers)
+    ).json()
+    assert result["extracted_at"] is not None
+    by_name = {m["name"]: m for m in result["mentions"]}
+    assert by_name["Lan Can"]["details"]["address_hint"] == "39 Hàng Cót"
+    assert by_name["Lan Can"]["details"]["category"] == "cafe"
+    assert (by_name["Lan Can"]["status"], by_name["Lan Can"]["place_id"]) == (
+        "resolved",
+        lan_can["id"],
+    )
+    other = await client.get(f"/api/videos/{video['id']}/extraction", headers={})
+    assert other.status_code == 401
 
 
 async def test_seeded_demo_merges_names_and_flags_conflicts(

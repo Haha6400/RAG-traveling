@@ -1,0 +1,42 @@
+{
+  "case": "ask-seating",
+  "model": "claude-opus-5-5",
+  "recorded_at": "2026-11-25T06:31:55+00:00",
+  "calls": [
+    {
+      "task": "interpret",
+      "key": "71df524abd4a2008",
+      "prompt": "Người review có nói gì về chỗ ngồi ở quán phở Lò Đúc không?",
+      "output": {
+        "intent": "detail_qa",
+        "language": "vi",
+        "search_query": "Người review nói gì về chỗ ngồi ở quán phở Lò Đúc",
+        "place_names": [
+          "phở Lò Đúc"
+        ],
+        "category": "restaurant",
+        "area": null,
+        "price_min": null,
+        "price_max": null,
+        "weekday": null,
+        "open_at": null,
+        "open_after": null,
+        "route_from": null,
+        "route_to": null,
+        "travel_mode": null
+      }
+    },
+    {
+      "task": "answer",
+      "key": "51b5dbf434affe1a",
+      "prompt": "Question: Người review có nói gì về chỗ ngồi ở quán phở Lò Đúc không?\n\nSources:\n[S1] Place card: Bánh mì 25\nBánh mì 25 (restaurant, Hoàn Kiếm, Hà Nội)\nĐịa chỉ: 25 Hàng Cá\nGiá: 30.000 VND\nGiờ mở cửa: Mo-Su 07:00-21:00\nĐiểm mạnh: vỏ giòn\nĐiểm yếu: pate hơi ít\nMức khuyên đi: 3.0/5 (1 video)\n\n[S2] Place card: Bún bò Nam Bộ Bà Đạt\nBún bò Nam Bộ Bà Đạt (restaurant, Hoàn Kiếm, Hà Nội)\nĐịa chỉ: 67 Hàng Điếu\nGiá: 65.000 VND\nGiờ mở cửa: Mo-Su 07:30-22:30\nĐiểm mạnh: rau thơm tươi; quán rộng rãi\nMức khuyên đi: 4.0/5 (1 video)\n\n[S3] Place card: Bún chả Hương Liên\nBún chả Hương Liên (restaurant, Hai Bà Trưng, Hà Nội)\nĐịa chỉ: 24 Lê Văn Hưu\nGiá: 40.000–90.000 VND\nGiờ mở cửa: Mo-Su 08:00-20:30\nĐiểm mạnh: nổi tiếng vì Obama từng ăn\nMức khuyên đi: 4.0/5 (1 video)\n\n[S4] Place card: Chả cá Thăng Long\nChả cá Thăng Long (restaurant, Hoàn Kiếm, Hà Nội)\nĐịa chỉ: 21 Đường Thành\nGiá: 180.000–220.000 VND\nGiờ mở cửa: Mo-Su 10:00-21:00\nĐiểm mạnh: cá chiên vàng, ăn với thì là\nMức khuyên đi: 4.0/5 (1 video)\n\n[S5] Place card: Phở Thìn Lò Đúc\nPhở Thìn Lò Đúc (restaurant, Hai Bà Trưng, Hà Nội)\nCòn gọi là: quán phở bò tái lăn Lò Đúc\nĐịa chỉ: 13 Lò Đúc\nGiá: 60.000–75.000 VND\nGiờ mở cửa: Mo-Su 06:00-21:00\nNên đi: sáng sớm khoảng 7h\nĐiểm mạnh: nước dùng béo ngậy; thơm mùi gừng; phở ngon\nĐiểm yếu: xếp hàng 20 phút giờ cao điểm; chỗ ngồi chật, ghế nhựa thấp\nMức khuyên đi: 4.5/5 (2 video)\n\n[S6] Place card: Xôi Yến\nXôi Yến (restaurant, Hoàn Kiếm, Hà Nội)\nĐịa chỉ: 35B Nguyễn Hữu Huân\nGiá: 35.000 VND\nGiờ mở cửa: Mo-Su 06:00-23:00\nĐiểm mạnh: topping đầy đặn\nMức khuyên đi: 4.0/5 (1 video)",
+      "output": {
+        "answer": "Có. Theo thẻ địa điểm Phở Thìn Lò Đúc (13 Lò Đúc), điểm yếu về chỗ ngồi là chỗ ngồi chật, ghế nhựa thấp [S5]. Ngoài ra quán còn phải xếp hàng khoảng 20 phút vào giờ cao điểm, nên đi sáng sớm khoảng 7h [S5].",
+        "cited": [
+          "S5"
+        ],
+        "insufficient": false
+      }
+    }
+  ]
+}

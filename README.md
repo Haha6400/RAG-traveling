@@ -4,7 +4,7 @@ A personal travel map built from **review videos**. Users upload videos, and the
 
 Think of the place reviews on Google Maps. The difference is that each place here is summarized from videos the user uploaded, not from other people's reviews.
 
-> Status: **Phases 0–3 implemented** (video → places, Q&A, trip planning), with a test console as UI. Phase 4 (TikTok links, adding places from a video while editing a plan, scaling) is next. The design and roadmap are in [PLAN.md](PLAN.md); how each phase works and how to test it is in [docs/](docs/).
+> Status: **Phases 0–3 implemented** (video → places, Q&A, trip planning), with a Vue app whose home page is the personal map ([docs](docs/frontend-map.md)). Phase 4 (TikTok links, adding places from a video while editing a plan, scaling) is next. The design and roadmap are in [PLAN.md](PLAN.md); how each phase works and how to test it is in [docs/](docs/).
 
 ## Features
 
@@ -36,7 +36,7 @@ Think of the place reviews on Google Maps. The difference is that each place her
 | Geo | Nominatim + Overpass (OSM), OSRM (optional; straight-line estimates otherwise), own `opening_hours` parser |
 | Scheduling | OR-Tools (prize-collecting VRP with time windows) |
 | Fuzzy name matching | rapidfuzz + Vietnamese-aware normalisation |
-| Frontend | Vue 3 + Vite (test console) |
+| Frontend | Vue 3 + Vite + vue-router; Leaflet with OSM raster tiles for the map (MapLibre GL + OpenFreeMap planned, see [docs/frontend-map.md](docs/frontend-map.md)) |
 
 ## Layout
 
@@ -61,7 +61,7 @@ backend/                  # Python package `travelrag` (uv project)
 ├── migrations/           # Alembic
 └── tests/                # unit/ (no I/O) and integration/ (real Postgres, fake models)
 ml-service/               # native model server (uv project)
-frontend/                 # Vue 3 + Vite test console
+frontend/                 # Vue 3 app: map (home), videos, ask, trips, dev tools
 docs/                     # per-phase logic + testing
 docker/  scripts/         # Postgres init; OSRM prep, test-video generator
 docker-compose.yml
@@ -87,7 +87,7 @@ docker compose exec worker python -m travelrag.demo.seed --email demo@example.co
 
 | Service | URL | Notes |
 |---|---|---|
-| `web` | http://localhost:5173 | Test console: Videos/Jobs, Places, Ask, Trips |
+| `web` | http://localhost:5173 | The app: Map (home), Videos, Ask, Trips; `/dev` has the job tools |
 | `api` | http://localhost:8000/docs | OpenAPI docs. Auto-reloads on changes to `backend/src` |
 | `worker` | — | Restart it after code changes: `docker compose restart worker` |
 | `db` | `127.0.0.1:5432` | `travelrag` / `travelrag`. Databases: `travelrag` (app), `travelrag_test` (tests). With Colima, use `127.0.0.1` rather than `localhost` (IPv4 only) |

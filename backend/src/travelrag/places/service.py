@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from pydantic import BaseModel
 
 from travelrag.core.text import normalize_name
-from travelrag.geo.domain import OsmPlace
+from travelrag.geo.domain import BBox, OsmPlace
 from travelrag.geo.ports import Geocoder
 from travelrag.jobs.ports import UnitOfWork
 from travelrag.llm.ports import LLMRefusalError, LLMUnavailableError, StructuredLLM
@@ -150,16 +150,15 @@ class PlacesService:
             )
             keep(_Scored(score, place, None))
 
-        bbox = None
         try:
-            bbox = await self._geocoder.area_bbox(mention.area or self._settings.default_region)
+            bbox, in_mentioned_area = await self._search_area(mention)
             osm_results = await self._geocoder.search(mention.name, bbox)
         except Exception as exc:  # geocoding is best effort; never fail the pipeline on it
             logger.warning("geocoding failed for %r: %s", mention.name, exc)
-            osm_results = []
+            in_mentioned_area, osm_results = False, []
         # POIs found inside the mentioned area's bounding box agree on area by construction;
-        # without a named area (or bbox) the area is unknown.
-        osm_area = mention.area if mention.area and bbox is not None else None
+        # when only the default region was searched, the area is unknown.
+        osm_area = mention.area if in_mentioned_area else None
         for osm in osm_results:
             existing = await self._repo.find_by_osm(mention.user_id, osm.osm_type, osm.osm_id)
             names = [osm.name, *(existing.aliases if existing else [])]
@@ -173,6 +172,33 @@ class PlacesService:
             )
             keep(_Scored(score, existing, None if existing else osm))
         return sorted(by_target.values(), key=lambda s: s.score, reverse=True)
+
+    async def _search_area(self, mention: Mention) -> tuple[BBox | None, bool]:
+        """Box to search in: the mentioned area, else the default region (never the whole
+        world, where a name like "Lan Can" matches anything). Second value: whether the box
+        is the mentioned area's."""
+        if mention.area:
+            bbox = await self._geocoder.area_bbox(mention.area)
+            if bbox is not None:
+                return bbox, True
+        return await self._geocoder.area_bbox(self._settings.default_region), False
+
+    async def _locate_by_address(self, place: Place, mention: Mention) -> None:
+        """A place that OSM does not know still gets a pin when the video gives its address.
+        The point is street-level (OSM rarely has house numbers in Vietnam), so the user may
+        move it; a later OSM match or the user's pin replaces it."""
+        address = mention.payload.get("address_hint")
+        if place.has_location or not address:
+            return
+        try:
+            bbox, _ = await self._search_area(mention)
+            point = await self._geocoder.geocode_address(address, bbox)
+        except Exception as exc:
+            logger.warning("address geocoding failed for %r: %s", address, exc)
+            return
+        if point is not None:
+            place.lat, place.lng = point.lat, point.lng
+            place.address = place.address or address
 
     async def _attach(
         self, mention: Mention, place: Place | None, osm: OsmPlace | None
@@ -191,9 +217,11 @@ class PlacesService:
                 area=mention.area,
                 address=mention.payload.get("address_hint"),
             )
+            await self._locate_by_address(place, mention)
             await self._repo.add_place(place)
         else:
             place.add_alias(mention.name)
+            await self._locate_by_address(place, mention)
             await self._repo.update_place(place)
         mention.place_id = place.id
         mention.status = MentionStatus.RESOLVED

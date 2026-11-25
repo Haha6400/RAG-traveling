@@ -1,0 +1,70 @@
+{
+  "case": "extract-review-pho",
+  "model": "claude-opus-5-5",
+  "recorded_at": "2026-11-25T06:47:43+00:00",
+  "calls": [
+    {
+      "task": "extract",
+      "key": "bcf6245c303f1e9b",
+      "prompt": "Video file: review_pho_ha_noi.mp4\n\nChunks:\n[0] 00:00-00:34\n    Review thật lòng quán phở bò tái lăn Lò Đúc. Phở ngon, nhưng giờ cao điểm phải xếp hàng hai mươi phút.\n    On screen: PHỞ BÒ TÁI LĂN\n[1] 00:32-01:06\n    Chỗ ngồi thì khá chật, ghế nhựa thấp, bàn ghép chung với khách lạ, không hợp đi nhóm đông. Nhân viên phục vụ nhanh nhưng hơi vội.\n[2] 01:04-01:39\n    Nếu ngại đông thì qua bún bò Nam Bộ Bà Đạt ở Hàng Điếu, sáu mươi lăm nghìn một bát, rau thơm tươi, quán rộng rãi hơn.\n    On screen: BÚN BÒ NAM BỘ",
+      "output": {
+        "mentions": [
+          {
+            "name": "Phở bò tái lăn Lò Đúc",
+            "category": "restaurant",
+            "area": null,
+            "address_hint": "Lò Đúc",
+            "price_min": null,
+            "price_max": null,
+            "currency": null,
+            "price_unit": null,
+            "opening_hours_text": null,
+            "opening_hours_osm": null,
+            "best_time": "Tránh giờ cao điểm",
+            "pros": [
+              "phở ngon",
+              "phục vụ nhanh"
+            ],
+            "cons": [
+              "giờ cao điểm xếp hàng 20 phút",
+              "chỗ ngồi chật",
+              "ghế nhựa thấp",
+              "bàn ghép chung với khách lạ",
+              "không hợp đi nhóm đông",
+              "nhân viên hơi vội"
+            ],
+            "recommendation": 3,
+            "chunk_numbers": [
+              0,
+              1
+            ],
+            "confidence": 0.6
+          },
+          {
+            "name": "Bún bò Nam Bộ Bà Đạt",
+            "category": "restaurant",
+            "area": null,
+            "address_hint": "Hàng Điếu",
+            "price_min": 65000,
+            "price_max": 65000,
+            "currency": "VND",
+            "price_unit": "một bát",
+            "opening_hours_text": null,
+            "opening_hours_osm": null,
+            "best_time": null,
+            "pros": [
+              "rau thơm tươi",
+              "quán rộng rãi"
+            ],
+            "cons": [],
+            "recommendation": 4,
+            "chunk_numbers": [
+              2
+            ],
+            "confidence": 0.75
+          }
+        ]
+      }
+    }
+  ]
+}

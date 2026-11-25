@@ -10,7 +10,7 @@ from travelrag.geo import opening_hours
 from travelrag.llm.ports import StructuredLLM
 from travelrag.places.domain import Mention
 
-PROMPT_VERSION = "extract-v1"
+PROMPT_VERSION = "extract-v2"
 MIN_CONFIDENCE = 0.3
 
 SYSTEM = """You extract travel places from short review videos (TikTok-style).
@@ -22,6 +22,10 @@ Rules:
   hotels, attractions, shops...). Skip places only named in passing with nothing said about them.
 - Use only what the video says. Never fill fields from your own knowledge; use null instead.
 - Keep the place name in its original language and spelling as said or shown.
+- Videos often show the place name with its address on screen (e.g. "PHỞ THÌN" then
+  "13 Lò Đúc"). Put such a street address in address_hint; it is how the place is found on
+  the map. On-screen lines are separated by " | " and may be OCR-garbled; repeated fragments
+  across chunks are the same overlay.
 - Prices: integers in the stated currency (e.g. "45 nghìn" -> 45000, currency VND).
 - opening_hours_osm: OpenStreetMap syntax only when the stated hours are exact; otherwise null.
 - pros / cons: short phrases in the video's language.

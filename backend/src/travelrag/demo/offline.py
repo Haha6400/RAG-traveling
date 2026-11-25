@@ -14,7 +14,7 @@ import zlib
 
 from travelrag.core.text import area_matches, normalize_name, unaccent
 from travelrag.demo.hanoi import PLACES
-from travelrag.geo.domain import BBox, OsmPlace
+from travelrag.geo.domain import BBox, LatLng, OsmPlace
 from travelrag.ml.ports import Embedding, SparseVector
 from travelrag.places.domain import name_similarity
 
@@ -52,6 +52,13 @@ def osm_from_dataset(key: str) -> OsmPlace:
 
 HANOI = BBox(20.95, 105.75, 21.10, 105.90)
 
+# Street-level points, like Nominatim's answer for "<number> <street>" in Vietnam (house
+# numbers are rarely mapped): the dataset's streets plus a few without a dataset place.
+STREETS: dict[str, LatLng] = {
+    unaccent(re.sub(r"^\w*\d\w*\s+", "", p["address"])): LatLng(p["lat"], p["lng"])
+    for p in PLACES.values()
+} | {"hang cot": LatLng(21.0376, 105.8471), "hang ma": LatLng(21.0365, 105.8485)}
+
 
 class DemoGeocoder:
     """Behaves like Nominatim on the dataset: a district resolves to the box around its
@@ -80,6 +87,16 @@ class DemoGeocoder:
         scored = [(name_similarity(name, p["name"]), k) for k, p in PLACES.items() if inside(p)]
         hits = sorted((s, k) for s, k in scored if s >= 0.5)[::-1][:limit]
         return [osm_from_dataset(k) for _, k in hits]
+
+    async def geocode_address(self, address: str, bbox: BBox | None) -> LatLng | None:
+        norm = unaccent(address)
+        for street, point in STREETS.items():
+            if re.search(rf"\b{re.escape(street)}\b", norm) and (
+                bbox is None
+                or (bbox.south <= point.lat <= bbox.north and bbox.west <= point.lng <= bbox.east)
+            ):
+                return point
+        return None
 
 
 class HashEmbedder:

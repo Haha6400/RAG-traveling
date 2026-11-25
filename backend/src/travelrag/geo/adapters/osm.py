@@ -13,11 +13,20 @@ from typing import Any
 
 import httpx
 
-from travelrag.geo.domain import BBox, OsmPlace, osm_category
+from travelrag.geo.domain import BBox, LatLng, OsmPlace, osm_category
 
 logger = logging.getLogger(__name__)
 
 _CATEGORY_KEYS = ("amenity", "tourism", "historic", "leisure", "shop")
+_AREA_CATEGORIES = ("boundary", "place")
+# A street-address match must be about street size (~1.5 km); a larger box means Nominatim
+# fell back to a ward or city, whose centre would be a misleading pin.
+MAX_ADDRESS_SPAN_DEG = 0.015
+
+
+def _bbox(result: dict[str, Any]) -> BBox:
+    south, north, west, east = (float(v) for v in result["boundingbox"])
+    return BBox(south=south, west=west, north=north, east=east)
 
 
 class _Throttle:
@@ -70,15 +79,33 @@ class OsmGeocoder:
     async def area_bbox(self, area: str) -> BBox | None:
         try:
             results = await self._get_json(
-                f"{self._nominatim}/search", {"q": area, "format": "jsonv2", "limit": 1}
+                f"{self._nominatim}/search", {"q": area, "format": "jsonv2", "limit": 5}
             )
         except httpx.HTTPError as exc:
             logger.warning("Nominatim area lookup failed: %s", exc)
             return None
-        if not results:
+        # Only areas count. Free-text search ranks POIs too: "Phố cổ, Hà Nội" returns the
+        # restaurant "Phở Cồ" first, whose box would hide every other place.
+        for r in results:
+            if r.get("category") in _AREA_CATEGORIES:
+                return _bbox(r)
+        return None
+
+    async def geocode_address(self, address: str, bbox: BBox | None) -> LatLng | None:
+        params: dict[str, Any] = {"q": address, "format": "jsonv2", "limit": 5}
+        if bbox is not None:
+            params["viewbox"] = f"{bbox.west},{bbox.north},{bbox.east},{bbox.south}"
+            params["bounded"] = 1
+        try:
+            results = await self._get_json(f"{self._nominatim}/search", params)
+        except httpx.HTTPError as exc:
+            logger.warning("Nominatim address lookup failed: %s", exc)
             return None
-        south, north, west, east = (float(v) for v in results[0]["boundingbox"])
-        return BBox(south=south, west=west, north=north, east=east)
+        for r in results:
+            box = _bbox(r)
+            if max(box.north - box.south, box.east - box.west) <= MAX_ADDRESS_SPAN_DEG:
+                return LatLng(float(r["lat"]), float(r["lon"]))
+        return None
 
     async def search(self, name: str, bbox: BBox | None, limit: int = 5) -> list[OsmPlace]:
         places = await self._nominatim_search(name, bbox, limit)

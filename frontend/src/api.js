@@ -59,6 +59,7 @@ export const api = {
   videoFileUrl: (token, id) => `/api/videos/${id}/file?token=${encodeURIComponent(token)}`,
   uploadVideo,
   transcript: (token, videoId) => request('GET', `/videos/${videoId}/transcript`, { token }),
+  videoExtraction: (token, videoId) => request('GET', `/videos/${videoId}/extraction`, { token }),
 
   // Phase 1: places and review
   listPlaces: (token) => request('GET', '/places', { token }),
