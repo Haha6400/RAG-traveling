@@ -1,0 +1,62 @@
+{
+  "case": "extract-two-shops",
+  "model": "claude-opus-5-5",
+  "recorded_at": "2026-11-25T06:47:39+00:00",
+  "calls": [
+    {
+      "task": "extract",
+      "key": "2d731dec210dbce4",
+      "prompt": "Video file: review_2_quan.mp4\n\nChunks:\n[0] 00:00-00:26\n    Hôm nay mình review 2 quán ở Phố Cổ Hà Nội. Quán đầu tiên là bún chả đắc kim ở số 1 hàng mảnh, bún chả 50.000 một suất, chả nướng thơm nhưng nước chấm hơi ngọt, quán mở từ 9h sáng đến 9h tối. Quán thứ 2 là cà phê đing trên phố Đinh Tiên Hoàng, cà phê trứng 35.000, view nhìn ra hồ gơm rất đẹp, nên đi buổi tối, mình chấm cà phê đing 5 sao?\n    On screen: BÚN CHẢ ĐẮC KIM | HÀNG MÀNH",
+      "output": {
+        "mentions": [
+          {
+            "name": "Bún chả Đắc Kim",
+            "category": "restaurant",
+            "area": "Phố Cổ, Hà Nội",
+            "address_hint": "1 Hàng Mành",
+            "price_min": 50000,
+            "price_max": 50000,
+            "currency": "VND",
+            "price_unit": "một suất",
+            "opening_hours_text": "mở từ 9h sáng đến 9h tối",
+            "opening_hours_osm": "09:00-21:00",
+            "best_time": null,
+            "pros": [
+              "chả nướng thơm"
+            ],
+            "cons": [
+              "nước chấm hơi ngọt"
+            ],
+            "recommendation": 3,
+            "chunk_numbers": [
+              0
+            ],
+            "confidence": 0.95
+          },
+          {
+            "name": "cà phê đing",
+            "category": "cafe",
+            "area": "Phố Cổ, Hà Nội",
+            "address_hint": "phố Đinh Tiên Hoàng",
+            "price_min": 35000,
+            "price_max": 35000,
+            "currency": "VND",
+            "price_unit": "cà phê trứng",
+            "opening_hours_text": null,
+            "opening_hours_osm": null,
+            "best_time": "buổi tối",
+            "pros": [
+              "view nhìn ra hồ Gươm rất đẹp"
+            ],
+            "cons": [],
+            "recommendation": 5,
+            "chunk_numbers": [
+              0
+            ],
+            "confidence": 0.6
+          }
+        ]
+      }
+    }
+  ]
+}

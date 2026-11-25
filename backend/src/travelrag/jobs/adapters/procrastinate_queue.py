@@ -6,6 +6,7 @@ from travelrag.jobs.domain import Job, JobKind
 # importing worker code.
 TASK_NAMES: dict[JobKind, str] = {
     JobKind.DUMMY: "jobs.dummy",
+    JobKind.PROCESS_VIDEO: "jobs.process_video",
 }
 
 

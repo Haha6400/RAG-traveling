@@ -1,0 +1,46 @@
+{
+  "case": "extract-lan-can",
+  "model": "claude-opus-5-5",
+  "recorded_at": "2026-11-25T06:47:46+00:00",
+  "calls": [
+    {
+      "task": "extract",
+      "key": "b45b26398aa7a25b",
+      "prompt": "Video file: Unknown.mp4\n\nChunks:\n[0] 00:00-01:00\n    Nhà này cận lòng biên là gần Hoàng Mai, nhưng mà đón thùa là cứ phải lên phố cổ Bất trị ưu phải ăn brunch, đi photo booth cho mời ra ca phê Tôi tìm được mở gặp ban công nhìn xuống ngắm phố cổ yếu rã man Ủa rồi cái khung cảnh này phải lòng nhạc gì ạ? Một thùa đi qua Cảm ơn gặp bóng, chẳng phải quay xa Quán này thì đúng như cái tên luôn, Lan Can Có rất nhiều gốc ban công sinh, theo từ trên cao hẳn này Từ từng lỡ lỡ hay là cái gốc tui tôi thấy đẹp nhất Nhìn ngắm phố cổ như chạy chậm lại, người con lại này khách du lịch, khánh hàng rong rồi là sích lo Người hay uống cho cơ bom trên hồ tây, nhưng mà tuổi tôi thích cái view đường phố này hơn Recommend các bạn đi bởi chiều là đắng và đẹp nhất nha Mùi đây thì đẹp nhưng mà mùi lâu hơi mỏi lưng, bên dưới có sofa Tối cả các mùa ngoài cửa này cũng sinh, mùi thâm thoải mái hơn Nhưng mọi người chuyển xuống bên dưới Mùi chiêu chiêu, nhìn những mùa thứ đi Bắt đầu khoảng sinh tu, chỉnh tất cả các ảnh chụp từ sáng hôm giờ Mùa mùa lúc cũng đến tối luôn nhé, bùi sáng nắng chéo vào đề kiểu khác Và đến tối đây lên nánh sáng lông lên trong nó cựu câu gì lắm Hiệu duyên nào tôi lại gặp bạn tôi làm khách sẵn ngay đối diện nó vừa mới ta làm Hiệu duyên theo lần nữa là ngay mình cạnh lại mời tháng lên nướng siêu ngon Lần đầu gây quán con nhật là cũng có duyên\n    On screen: TikTok @ kjta.01 | obomb ngam Phô | TikTok | 2 cổ | TikTok @ kjta.01 8alss Idiu6 | chocobomb ngắm phô | chocobomb Ygắm Phô | @ Kita 01 | phổ cổ ) | chocpbomb ngắm Phô | chocohomb ngắm Phố | ancan TikTok | kita.01 | chocol Ou | @ kita.01 | anh Rhyy qà nghe và block ^^ ) | kjta.01 | (hanh Rhm đã ngbe; và' bLock M ) | LAN | LAN CAN | 39 Hàng Cót | ancan | OPEN | @ kjta.01 | kita 01 | kfta, 01 | @ kita 01 | @ kjta 01 | ew vông chocobomb | siêu VUÝP | chocobomb | VUYP | banh LUi mUa ngoàii | @ kita 07 | Lancan | feeling | today? | Tiktok | ta 01 | ( khodng Lặng xinglu | Yobas | kjta 01 | iancan | eeling $0 | bancan | oday! | sq | Fo8ay! | hỮU duyê | hỮU duyên /: | hỮU duyên 2= | hỮU quyên 2: | kjta,01\n[1] 00:58-01:03\n    Lần đầu gây quán con nhật là cũng có duyên Hoàn à lại hiệu duyên, rồi bạn trốn làm đi hưởng thu thì tôi lại gây quán tiếp hình\n    On screen: Lancan | CÕMDỪA | Combo nổ giữa | Chạm là nổ, de | Chocobomb thổi _ | Khól | 896 | TikTok | kjta.01",
+      "output": {
+        "mentions": [
+          {
+            "name": "Lan Can",
+            "category": "cafe",
+            "area": "phố cổ, Hà Nội",
+            "address_hint": "39 Hàng Cót",
+            "price_min": null,
+            "price_max": null,
+            "currency": null,
+            "price_unit": null,
+            "opening_hours_text": null,
+            "opening_hours_osm": null,
+            "best_time": "buổi chiều",
+            "pros": [
+              "ban công nhìn xuống ngắm phố cổ",
+              "nhiều góc ban công xinh",
+              "view đường phố đẹp",
+              "chocobomb",
+              "bên dưới có sofa thoải mái",
+              "đẹp cả sáng lẫn tối"
+            ],
+            "cons": [
+              "ngồi lâu hơi mỏi lưng"
+            ],
+            "recommendation": 5,
+            "chunk_numbers": [
+              0,
+              1
+            ],
+            "confidence": 0.9
+          }
+        ]
+      }
+    }
+  ]
+}

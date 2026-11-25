@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Any
 
 from sqlalchemy import DateTime, ForeignKey, SmallInteger, String, Text, select
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import JSONB, distinct_on
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -19,6 +19,8 @@ class JobRow(Base):
     # Referencing the column object (not the "users.id" string) guarantees the users table is
     # registered in every process that loads this model, e.g. the worker.
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey(UserRow.id, ondelete="CASCADE"))
+    # The FK to videos.id (ON DELETE CASCADE) exists in the database (migration 0002) but is not
+    # declared here, so the jobs module does not depend on the ingestion module's models.
     video_id: Mapped[uuid.UUID | None]
     kind: Mapped[str] = mapped_column(String(32))
     status: Mapped[str] = mapped_column(String(16))
@@ -81,6 +83,15 @@ class SqlAlchemyJobRepository:
             .limit(limit)
         )
         return [_to_domain(row) for row in result.scalars()]
+
+    async def latest_for_videos(self, video_ids: list[uuid.UUID]) -> dict[uuid.UUID, Job]:
+        result = await self._session.execute(
+            select(JobRow)
+            .where(JobRow.video_id.in_(video_ids))
+            .order_by(JobRow.video_id, JobRow.created_at.desc())
+            .ext(distinct_on(JobRow.video_id))
+        )
+        return {row.video_id: _to_domain(row) for row in result.scalars() if row.video_id}
 
     async def update(self, job: Job) -> None:
         row = await self._session.get(JobRow, job.id)

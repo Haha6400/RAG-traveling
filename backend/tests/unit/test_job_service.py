@@ -38,7 +38,15 @@ async def test_dummy_pipeline_runs_every_stage_to_done() -> None:
     stages = [e.stage for e in h.publisher.delivered if e.stage]
     assert statuses[0] is JobStatus.PENDING
     assert statuses[-1] is JobStatus.DONE
-    assert [s.value for s in dict.fromkeys(stages)] == ["asr", "ocr", "extract", "resolve", "index"]
+    assert [s.value for s in dict.fromkeys(stages)] == [
+        "probe",
+        "asr",
+        "ocr",
+        "extract",
+        "resolve",
+        "aggregate",
+        "index",
+    ]
     assert (await h.service.get_for_user(job.id, user)).progress == 100
 
 

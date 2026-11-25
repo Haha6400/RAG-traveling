@@ -1,0 +1,31 @@
+{
+  "case": "ask-route",
+  "model": "claude-opus-5-5",
+  "recorded_at": "2026-11-25T06:32:14+00:00",
+  "calls": [
+    {
+      "task": "interpret",
+      "key": "e0e965f5a4541066",
+      "prompt": "Từ Văn Miếu tới phở Thìn bao xa?",
+      "output": {
+        "intent": "route",
+        "language": "vi",
+        "search_query": "Khoảng cách từ Văn Miếu tới phở Thìn",
+        "place_names": [
+          "Văn Miếu",
+          "phở Thìn"
+        ],
+        "category": null,
+        "area": null,
+        "price_min": null,
+        "price_max": null,
+        "weekday": null,
+        "open_at": null,
+        "open_after": null,
+        "route_from": "Văn Miếu",
+        "route_to": "phở Thìn",
+        "travel_mode": null
+      }
+    }
+  ]
+}

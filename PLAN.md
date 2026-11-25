@@ -119,7 +119,10 @@ places/
 users(id, email, created_at)
 
 videos(id, user_id, source,            -- 'local' | 'tiktok' (later)
-       file_path, original_name, duration_ms, language, created_at)
+       storage_key, original_name, content_type, size_bytes,
+       sha256,                         -- UNIQUE (user_id, sha256): re-uploads are rejected
+       duration_ms, width, height, has_audio,  -- filled by the probe stage
+       language, created_at)           -- language: added with ASR (1.2)
 
 jobs(id, user_id, video_id, kind,      -- 'process_video' | 'rebuild_summary' ...
      status,                           -- pending | processing | needs_review | done | failed
@@ -328,17 +331,23 @@ Status: done. Notes from implementation:
 - `jobs` + procrastinate + SSE: a dummy job that goes through every state.
 - **Done when:** `docker compose up` works and the dummy-job test passes.
 
-### Phase 1: Video → place card
-- 1.1 Local upload, `VideoSource`, job creation.
-- 1.2 ASR + timestamped chunking.
-- 1.3 Extraction against the `PlaceMention` schema, with versioned prompts.
-- 1.4 Resolution: match against existing places and OSM, confidence thresholds, an API to confirm candidates.
-- 1.5 Aggregation + conflicts, lazy summary.
-- 1.6 OCR (frame selection + PaddleOCR) attached to chunks.
-- 1.7 Place view API: place card, source videos + timestamps.
+### Phase 1: Video → place card ✅
+Details, deviations and tests: [docs/phase-1-video-pipeline.md](docs/phase-1-video-pipeline.md).
+- 1.1 Local upload, `VideoSource`, job creation. ✅
+  - `POST /api/videos` (multipart) streams the file to storage while hashing it (SHA-256), then records the video and a `process_video` job in one commit. `GET/DELETE /api/videos[/{id}]`, `GET /api/videos/{id}/file` (Range support, for playback at a timestamp later).
+  - The pipeline starts with a `probe` stage (PyAV): it rejects files that are not decodable, have no video stream, or exceed `max_video_seconds`, and stores duration/resolution/audio.
+  - Storage is behind the `VideoStorage` port (`LocalVideoStorage` now, S3-compatible later). api and worker share the `media` volume.
+  - Known limits: Starlette spools the multipart body to a temp file before our size check runs, so very large uploads are written twice. Enforce a body-size limit at the reverse proxy in production. Deleting a video while its job runs makes the job fail with "no longer exists".
+- 1.2 ASR + timestamped chunking. ✅
+- 1.3 Extraction against the `PlaceMention` schema, with versioned prompts. ✅ (Claude, structured outputs)
+- 1.4 Resolution: match against existing places and OSM, confidence thresholds, an API to confirm candidates. ✅ Mentions have no coordinates, so "distance" is judged by area; the job resumes after the review.
+- 1.5 Aggregation + conflicts, lazy summary. ✅ Only OSM-syntax hours are compared for conflicts.
+- 1.6 OCR (frame selection + PaddleOCR) attached to chunks. ✅ Changed: periodic sampling + dHash de-duplication instead of PySceneDetect/imagehash; EasyOCR instead of PaddleOCR (shares torch with the other models).
+- 1.7 Place view API: place card, source videos + timestamps. ✅
 - **Done when:** uploading 3 videos about the same shop (under different names) yields 1 place with 3 mentions, and conflicts show correctly. A sample video set exists for regression tests.
 
-### Phase 2: Q&A
+### Phase 2: Q&A ✅
+Details, eval results and tests: [docs/phase-2-qa.md](docs/phase-2-qa.md). Changes from the plan: intent and filters come from one LLM call; a `route` intent answers distance questions from the router.
 - 2.1 Dense + sparse + trigram indexing.
 - 2.2 Hybrid retriever + RRF + rerank.
 - 2.3 Intent + filters, routing to SQL/OSRM.
@@ -347,7 +356,8 @@ Status: done. Notes from implementation:
 - 2.6 Retrieval evaluation set (§6).
 - **Done when:** the question set meets the recall/nDCG targets set in 2.6, and questions with no data always get a "no data yet" answer.
 
-### Phase 3: Trip planning
+### Phase 3: Trip planning ✅
+Details and tests: [docs/phase-3-planning.md](docs/phase-3-planning.md). Restaurants get lunch/dinner variants so a day has at most one of each; replacement never moves other stops.
 - 3.1 Preference intake + `trips` storage.
 - 3.2 Candidate selection + OSRM matrix + OR-Tools with time windows.
 - 3.3 LLM notes/reasons (must not change the schedule).
@@ -364,10 +374,10 @@ Status: done. Notes from implementation:
 
 | # | Item | Notes |
 |---|---|---|
-| Q1 | Which LLM provider / model? | Needs solid structured output and Vietnamese support. Drives extraction cost |
-| Q2 | Which frontend? | The map needs MapLibre/Leaflet + OSM tiles. Not covered in this plan yet |
-| Q3 | How does the API embed queries and rerank for live Q&A? | Two options: (a) the API loads bge-m3 + reranker itself, heavier but simpler; (b) a separate model server (Infinity/TEI). Decide in Phase 2 |
-| Q4 | GPU infrastructure | faster-whisper + PaddleOCR + bge-m3 on CPU will be slow. Need a time estimate per video |
+| Q1 | ~~Which LLM provider / model?~~ | **Decided:** Claude (`claude-opus-5-5`), structured outputs, server-side refusal fallback. Tests use a scripted fake |
+| Q2 | ~~Which frontend?~~ | **Decided:** Vue 3 + vue-router; map with Leaflet + OSM raster tiles now, MapLibre GL JS + OpenFreeMap before production or map layers (trip routes). See [docs/frontend-map.md](docs/frontend-map.md) |
+| Q3 | ~~How does the API embed queries and rerank for live Q&A?~~ | **Decided:** our own `ml-service/` (bge-m3 dense+sparse, reranker, ASR, OCR), run natively on the host for the Apple GPU; api and worker call it over HTTP |
+| Q4 | GPU infrastructure | Embeddings and rerank run on MPS (Apple GPU); faster-whisper runs on CPU on macOS. A 10 s clip takes a few seconds per stage once the models are loaded; measure on real 1–3 min videos |
 | Q5 | The public Nominatim instance allows 1 request/second and forbids heavy use | Use the public instance with caching in dev. Self-host Nominatim/Overpass in production |
 | Q6 | OSM is missing many small POIs (street food stalls) | Allow places without `osm_id`, pinned on the map by the user |
 | Q7 | ASR quality with loud background music, regional accents, Vietnamese–English code-switching | Track with the sample video set. Consider adding VAD or vocal separation |

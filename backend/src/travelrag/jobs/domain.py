@@ -19,15 +19,18 @@ class JobStatus(StrEnum):
 class JobStage(StrEnum):
     """Stages of the video pipeline, in execution order."""
 
+    PROBE = "probe"
     ASR = "asr"
     OCR = "ocr"
     EXTRACT = "extract"
     RESOLVE = "resolve"
+    AGGREGATE = "aggregate"
     INDEX = "index"
 
 
 class JobKind(StrEnum):
     DUMMY = "dummy"
+    PROCESS_VIDEO = "process_video"
 
 
 TERMINAL_STATUSES = frozenset({JobStatus.DONE, JobStatus.FAILED})
@@ -67,8 +70,16 @@ class Job:
     updated_at: datetime = field(default_factory=_now)
 
     @classmethod
-    def new(cls, user_id: uuid.UUID, kind: JobKind, payload: dict[str, Any] | None = None) -> Self:
-        return cls(id=uuid.uuid4(), user_id=user_id, kind=kind, payload=payload or {})
+    def new(
+        cls,
+        user_id: uuid.UUID,
+        kind: JobKind,
+        payload: dict[str, Any] | None = None,
+        video_id: uuid.UUID | None = None,
+    ) -> Self:
+        return cls(
+            id=uuid.uuid4(), user_id=user_id, kind=kind, payload=payload or {}, video_id=video_id
+        )
 
     @property
     def is_terminal(self) -> bool:

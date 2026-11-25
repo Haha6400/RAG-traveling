@@ -1,0 +1,28 @@
+{
+  "case": "ask-out-of-scope",
+  "model": "claude-opus-5-5",
+  "recorded_at": "2026-11-25T06:32:17+00:00",
+  "calls": [
+    {
+      "task": "interpret",
+      "key": "2e4958c303cbbc79",
+      "prompt": "Thủ đô của Pháp là gì?",
+      "output": {
+        "intent": "out_of_scope",
+        "language": "vi",
+        "search_query": "Thủ đô của Pháp là gì?",
+        "place_names": [],
+        "category": null,
+        "area": null,
+        "price_min": null,
+        "price_max": null,
+        "weekday": null,
+        "open_at": null,
+        "open_after": null,
+        "route_from": null,
+        "route_to": null,
+        "travel_mode": null
+      }
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "case": "replace-pick",
+  "model": "claude-opus-5-5",
+  "recorded_at": "2026-11-25T06:32:29+00:00",
+  "calls": [
+    {
+      "task": "replace_pick",
+      "key": "070f5de026fa14e4",
+      "prompt": "Preferences: {\"budget\":null,\"pace\":\"balanced\",\"priorities\":[\"food\"]}\nOptions:\n[\n {\n  \"place_id\": \"<id1>\",\n  \"distance_m\": 900.0,\n  \"name\": \"Cộng Cà Phê Tràng Tiền\",\n  \"category\": \"cafe\",\n  \"price\": null,\n  \"rating\": 4.0,\n  \"pros\": [\n   \"cà phê cốt dừa\"\n  ],\n  \"cons\": [],\n  \"best_time\": [],\n  \"summary\": null\n },\n {\n  \"place_id\": \"<id2>\",\n  \"distance_m\": 950.0,\n  \"name\": \"Kem Tràng Tiền\",\n  \"category\": \"cafe\",\n  \"price\": \"15.000 VND\",\n  \"rating\": 4.0,\n  \"pros\": [\n   \"rẻ, mát\"\n  ],\n  \"cons\": [],\n  \"best_time\": [],\n  \"summary\": null\n },\n {\n  \"place_id\": \"<id3>\",\n  \"distance_m\": 400.0,\n  \"name\": \"Cà phê Giảng\",\n  \"category\": \"cafe\",\n  \"price\": \"35.000 VND\",\n  \"rating\": 5.0,\n  \"pros\": [\n   \"cà phê trứng béo, ngọt vừa\",\n   \"không tanh\",\n   \"tối vẫn mở\"\n  ],\n  \"cons\": [],\n  \"best_time\": [],\n  \"summary\": null\n }\n]",
+      "output": {
+        "place_id": "<id3>",
+        "reason": "Cà phê Giảng gần nhất, được đánh giá 5 sao với món cà phê trứng béo ngọt vừa, không tanh, rất hợp với người ưu tiên ẩm thực."
+      }
+    }
+  ]
+}

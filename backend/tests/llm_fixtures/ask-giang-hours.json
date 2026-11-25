@@ -1,0 +1,42 @@
+{
+  "case": "ask-giang-hours",
+  "model": "claude-opus-5-5",
+  "recorded_at": "2026-11-25T06:32:05+00:00",
+  "calls": [
+    {
+      "task": "interpret",
+      "key": "1cc1c3e2c365a3f2",
+      "prompt": "Cà phê Giảng mở cửa mấy giờ?",
+      "output": {
+        "intent": "detail_qa",
+        "language": "vi",
+        "search_query": "Giờ mở cửa của Cà phê Giảng",
+        "place_names": [
+          "Cà phê Giảng"
+        ],
+        "category": "cafe",
+        "area": null,
+        "price_min": null,
+        "price_max": null,
+        "weekday": null,
+        "open_at": null,
+        "open_after": null,
+        "route_from": null,
+        "route_to": null,
+        "travel_mode": null
+      }
+    },
+    {
+      "task": "answer",
+      "key": "d1890fbfd400bc46",
+      "prompt": "Question: Cà phê Giảng mở cửa mấy giờ?\n\nSources:\n[S1] Place card: Cà phê Giảng\nCà phê Giảng (cafe, Hoàn Kiếm, Hà Nội)\nĐịa chỉ: 39 Nguyễn Hữu Huân\nGiá: 35.000 VND\nGiờ mở cửa: Mo-Su 08:00-23:00\nĐiểm mạnh: cà phê trứng béo, ngọt vừa; không tanh; tối vẫn mở\nMức khuyên đi: 5.0/5 (2 video)\nThông tin mâu thuẫn về opening_hours: 'Mo-Su 07:00-22:00' (an_sap_pho_co_ha_noi.mp4, 2026-10-01) vs 'Mo-Su 08:00-23:00' (ha_noi_ve_dem.mp4, 2026-11-01)\n\n[S2] Place card: Cộng Cà Phê Tràng Tiền\nCộng Cà Phê Tràng Tiền (cafe, Hoàn Kiếm, Hà Nội)\nĐịa chỉ: 27 Tràng Tiền\nGiờ mở cửa: Mo-Su 07:00-23:30\nĐiểm mạnh: cà phê cốt dừa\nMức khuyên đi: 4.0/5 (1 video)\n\n[S3] Place card: Kem Tràng Tiền\nKem Tràng Tiền (cafe, Hoàn Kiếm, Hà Nội)\nĐịa chỉ: 35 Tràng Tiền\nGiá: 15.000 VND\nGiờ mở cửa: Mo-Su 07:00-23:00\nĐiểm mạnh: rẻ, mát\nMức khuyên đi: 4.0/5 (1 video)",
+      "output": {
+        "answer": "Các nguồn có thông tin mâu thuẫn về giờ mở cửa của Cà phê Giảng (39 Nguyễn Hữu Huân) [S1]:\n- Video an_sap_pho_co_ha_noi.mp4 (01/10/2026): mở cửa từ 07:00 đến 22:00, tất cả các ngày trong tuần [S1].\n- Video ha_noi_ve_dem.mp4 (01/11/2026): mở cửa từ 08:00 đến 23:00, tất cả các ngày trong tuần [S1].\nThẻ địa điểm hiện ghi 08:00-23:00 [S1].",
+        "cited": [
+          "S1"
+        ],
+        "insufficient": false
+      }
+    }
+  ]
+}

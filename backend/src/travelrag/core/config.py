@@ -1,4 +1,5 @@
 from functools import cache
+from pathlib import Path
 from typing import Literal, Self
 
 from pydantic import model_validator
@@ -23,6 +24,41 @@ class Settings(BaseSettings):
     cors_origins: list[str] = ["http://localhost:5173"]
     log_level: str = "INFO"
     sse_heartbeat_seconds: float = 15.0
+
+    # Uploaded videos. Must be shared between the api and worker processes.
+    media_dir: Path = Path("data/media")
+    max_upload_bytes: int = 500 * 1024 * 1024
+    max_video_seconds: int = 20 * 60
+
+    # LLM (Claude). Without a key, LLM-backed steps degrade or fail with a clear message.
+    anthropic_api_key: str | None = None
+    llm_model: str = "claude-opus-5-5"
+
+    # Native model server (ml-service/): embeddings, reranking, ASR, OCR.
+    ml_service_url: str = "http://127.0.0.1:8100"
+    ml_timeout_seconds: float = 600.0
+    sparse_dim: int = 250002  # bge-m3 vocabulary size
+
+    # Geo. The default region is used when a video does not name the city.
+    default_region: str = "Hà Nội, Việt Nam"
+    nominatim_url: str = "https://nominatim.openstreetmap.org"
+    overpass_url: str = "https://overpass-api.de/api/interpreter"
+    osrm_url: str | None = None  # e.g. http://127.0.0.1:5001; unset -> straight-line estimates
+    geo_user_agent: str = "travelrag/0.1 (self-hosted personal travel map)"
+
+    # Pipeline
+    ocr_enabled: bool = True
+    ocr_sample_seconds: float = 1.5
+    resolve_auto_merge: float = 0.85
+    resolve_ask_user: float = 0.60
+
+    # Q&A retrieval
+    retrieval_candidates: int = 20
+    retrieval_keep: int = 6
+    rerank_min_score: float = 0.05
+
+    # Planner
+    planner_time_limit_seconds: float = 3.0
 
     @model_validator(mode="after")
     def _require_real_secret_in_prod(self) -> Self:
